@@ -1,0 +1,14 @@
+node_modules
+.next
+data
+deploy
+*.log
+.env*
+Dockerfile
+.dockerignore
+d2l-runner
+canvas-runner
+converter
+config
+*.md
+examples

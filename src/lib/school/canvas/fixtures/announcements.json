@@ -1,0 +1,22 @@
+[
+ {
+  "id": 501,
+  "title": "Lab 2 moved to Thursday",
+  "message": "<p>Lab 2 will meet <strong>Thursday</strong> this week.</p>",
+  "posted_at": "2026-10-08T13:00:00Z",
+  "delayed_post_at": null,
+  "html_url": "https://school.instructure.com/courses/101/discussion_topics/501",
+  "context_code": "course_101",
+  "user_name": "Dana Brooks"
+ },
+ {
+  "id": 502,
+  "title": "Essay 1 grades posted",
+  "message": "<p>Feedback is in the comments.&nbsp;See me in office hours.</p>",
+  "posted_at": "2026-09-25T16:30:00Z",
+  "delayed_post_at": null,
+  "html_url": "https://school.instructure.com/courses/202/discussion_topics/502",
+  "context_code": "course_202",
+  "user_name": "Lee Morgan"
+ }
+]

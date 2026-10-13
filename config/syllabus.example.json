@@ -1,0 +1,11 @@
+{
+  "_comment": "Optional. Copy to syllabus.json. Deliverables named in a syllabus that the LMS doesn't list yet, keyed by course code. Rows are [title, kind (assignment|quiz|exam|other), due (ISO 8601 with offset), match]. Once the LMS lists an assignment in that course whose title matches the case-insensitive regex `match`, the row is hidden, so the LMS stays the source of truth.",
+  "courses": {
+    "HIST 2111": {
+      "items": [
+        ["Midterm Exam", "exam", "2026-10-15T09:00:00-04:00", "midterm"],
+        ["Final Essay", "assignment", "2026-12-04T23:59:00-05:00", "final essay"]
+      ]
+    }
+  }
+}

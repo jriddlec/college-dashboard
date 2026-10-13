@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/* Theme is chosen by data-theme on <html> ("light" | "dark"); set before paint
+   by the inline script in layout.tsx from localStorage or the OS preference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f2;
+  --sidebar: #f6f6f4;
+  --border: #e7e6e3;
+  --border-strong: #d6d5d1;
+  --fg: #1d1d1b;
+  --fg-muted: #6b6a66;
+  --fg-subtle: #9a9893;
+  --accent: #2f5bd3; /* used sparingly; override with ACCENT_COLOR */
+  --accent-soft: #edf1fc;
+  --danger: #c4314b;
+  --danger-soft: #fdf0f2;
+  --warn: #b25e09;
+  --warn-soft: #fdf4e8;
+  --ok: #2f7d4f;
+  --ok-soft: #edf7f0;
+  --info: #2f6bbf;
+  --info-soft: #eef4fc;
+  --ring: #2f5bd355;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --course-l: 46%;
+  --course-s: 55%;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #111112;
+  --surface: #18181a;
+  --surface-2: #1f1f22;
+  --sidebar: #141415;
+  --border: #2a2a2e;
+  --border-strong: #3a3a3f;
+  --fg: #ececea;
+  --fg-muted: #a09f9b;
+  --fg-subtle: #6f6e6b;
+  --accent: #6d93f2;
+  --accent-soft: #18213a;
+  --danger: #f06a7f;
+  --danger-soft: #3a1a21;
+  --warn: #e8a24a;
+  --warn-soft: #33250f;
+  --ok: #5fbf85;
+  --ok-soft: #15291d;
+  --info: #79a8ec;
+  --info-soft: #172338;
+  --ring: #f0566f66;
+  --shadow: none;
+  --course-l: 66%;
+  --course-s: 50%;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Per-course color from a hue set inline: style={{ "--hue": 212 }} */
+.course-dot {
+  background: hsl(var(--hue) var(--course-s) var(--course-l));
+}
+.course-text {
+  color: hsl(var(--hue) var(--course-s) calc(var(--course-l) - 6%));
+}
+[data-theme="dark"] .course-text {
+  color: hsl(var(--hue) var(--course-s) var(--course-l));
+}
+.course-bar {
+  box-shadow: inset 3px 0 0 hsl(var(--hue) var(--course-s) var(--course-l));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Rendered Markdown (viewer page): same tokens as the rest of the UI. */
+.prose-study {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.prose-study > :first-child { margin-top: 0; }
+.prose-study h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 1.6em 0 0.6em; }
+.prose-study h2 { font-size: 17px; font-weight: 600; margin: 1.8em 0 0.6em; padding-bottom: 0.35em; border-bottom: 1px solid var(--border); }
+.prose-study h3 { font-size: 15px; font-weight: 600; margin: 1.5em 0 0.4em; }
+.prose-study h4 { font-size: 14px; font-weight: 600; margin: 1.3em 0 0.3em; color: var(--fg-muted); }
+.prose-study p, .prose-study ul, .prose-study ol, .prose-study table, .prose-study pre, .prose-study blockquote { margin: 0.75em 0; }
+.prose-study ul { list-style: disc; padding-left: 1.4em; }
+.prose-study ol { list-style: decimal; padding-left: 1.5em; }
+.prose-study li { margin: 0.2em 0; }
+.prose-study li > ul, .prose-study li > ol { margin: 0.2em 0; }
+.prose-study a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.prose-study strong { font-weight: 600; }
+.prose-study hr { border: 0; border-top: 1px solid var(--border); margin: 1.8em 0; }
+.prose-study blockquote { border-left: 3px solid var(--border-strong); padding: 0.1em 0 0.1em 1em; color: var(--fg-muted); }
+.prose-study code { font-family: var(--font-mono); font-size: 0.88em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05em 0.3em; }
+.prose-study pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 0.8em 1em; overflow-x: auto; }
+.prose-study pre code { background: none; border: 0; padding: 0; font-size: 12.5px; }
+.prose-study table { display: block; overflow-x: auto; border-collapse: collapse; font-size: 13.5px; }
+.prose-study th, .prose-study td { border: 1px solid var(--border); padding: 0.4em 0.7em; text-align: left; vertical-align: top; }
+.prose-study th { background: var(--surface-2); font-weight: 600; }
+.prose-study input[type="checkbox"] { margin-right: 0.4em; accent-color: var(--accent); }
+
+/* highlight.js tokens for the code viewer */
+.hljs-keyword, .hljs-built_in, .hljs-literal { color: hsl(268 50% calc(var(--course-l) - 4%)); }
+.hljs-string, .hljs-attr { color: var(--ok); }
+.hljs-number { color: var(--warn); }
+.hljs-comment, .hljs-meta { color: var(--fg-subtle); font-style: italic; }
+.hljs-title, .hljs-title.function_ { color: var(--info); }
+.hljs-type, .hljs-title.class_, .hljs-tag, .hljs-name { color: var(--accent); }
+
+.course-soft {
+  background: hsl(var(--hue) var(--course-s) var(--course-l) / 0.14);
+  color: hsl(var(--hue) var(--course-s) calc(var(--course-l) - 8%));
+}
+[data-theme="dark"] .course-soft {
+  color: hsl(var(--hue) var(--course-s) var(--course-l));
+}

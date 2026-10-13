@@ -1,0 +1,3 @@
+# Build context is the app dir; only this goes in.
+*
+!scripts/canvas_sync.py

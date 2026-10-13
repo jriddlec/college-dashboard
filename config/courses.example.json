@@ -1,0 +1,9 @@
+{
+  "_comment": "Optional. Copy to courses.json and edit. Keys are an LMS course id or a course code (\"CSCI 1301\"). Every field is optional. Classes are found in the library by folders named after their code (\"CSCI1301 Notes\", \"CSCI 1301\", ...) unless `folders` lists them. A key that matches no LMS course adds a library-only class. Icons: atom brain briefcase calculator code dna flask globe landmark languages music palette pen scale sigma.",
+  "courses": {
+    "CSCI 1301": { "icon": "code", "instructor": "Dr. Smith" },
+    "MATH 2260": { "name": "Calculus II", "icon": "sigma", "folders": ["Calc II"] },
+    "ORIENT 1000": { "hidden": true },
+    "Projects": { "name": "Side projects", "icon": "pen", "folders": ["Projects"] }
+  }
+}

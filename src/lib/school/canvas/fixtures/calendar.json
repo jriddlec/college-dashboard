@@ -1,0 +1,39 @@
+[
+ {
+  "id": 601,
+  "title": "Midterm review session",
+  "start_at": "2026-10-13T22:00:00Z",
+  "end_at": "2026-10-13T23:30:00Z",
+  "all_day": false,
+  "location_name": "Chemistry 201",
+  "html_url": "https://school.instructure.com/calendar?event_id=601&include_contexts=course_101",
+  "context_code": "course_101",
+  "workflow_state": "active",
+  "type": "event"
+ },
+ {
+  "id": 602,
+  "title": "No class: fall break",
+  "start_at": "2026-10-26T00:00:00Z",
+  "end_at": "2026-10-26T00:00:00Z",
+  "all_day": true,
+  "all_day_date": "2026-10-26",
+  "location_name": null,
+  "html_url": "https://school.instructure.com/calendar?event_id=602",
+  "context_code": "course_202",
+  "workflow_state": "active",
+  "type": "event"
+ },
+ {
+  "id": 603,
+  "title": "Cancelled lab",
+  "start_at": "2026-10-14T18:00:00Z",
+  "end_at": "2026-10-14T19:00:00Z",
+  "all_day": false,
+  "location_name": null,
+  "html_url": "https://school.instructure.com/calendar?event_id=603",
+  "context_code": "course_101",
+  "workflow_state": "deleted",
+  "type": "event"
+ }
+]

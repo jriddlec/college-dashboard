@@ -1,0 +1,5 @@
+# Build context is the app dir (compose: context ./src); only these go in.
+*
+!d2l-runner/entrypoint.sh
+!d2l-runner/keeper.py
+!scripts/d2l_sync.py

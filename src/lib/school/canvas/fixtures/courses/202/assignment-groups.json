@@ -1,0 +1,16 @@
+[
+ {
+  "id": 21,
+  "name": "Essays",
+  "position": 1,
+  "group_weight": 0.0,
+  "rules": {}
+ },
+ {
+  "id": 22,
+  "name": "Quizzes and Exams",
+  "position": 2,
+  "group_weight": 0.0,
+  "rules": {}
+ }
+]

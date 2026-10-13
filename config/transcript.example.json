@@ -1,0 +1,9 @@
+{
+  "_comment": "Optional. Copy to transcript.json to turn on the GPA widget. From your unofficial transcript: completed GPA hours and quality points, plus this term's classes and credits.",
+  "gpaHours": 45,
+  "qualityPoints": 162.3,
+  "inProgress": [
+    { "code": "CSCI 1301", "credits": 4 },
+    { "code": "HIST 2111", "credits": 3 }
+  ]
+}

@@ -1,0 +1,129 @@
+[
+ {
+  "id": 2001,
+  "course_id": 202,
+  "name": "Primary Source Essay 1",
+  "description": null,
+  "due_at": "2026-09-19T03:59:00Z",
+  "lock_at": null,
+  "unlock_at": null,
+  "points_possible": 100,
+  "grading_type": "points",
+  "assignment_group_id": 21,
+  "submission_types": [
+   "online_upload"
+  ],
+  "html_url": "https://school.instructure.com/courses/202/assignments/2001",
+  "published": true,
+  "omit_from_final_grade": false,
+  "is_quiz_assignment": false,
+  "has_submitted_submissions": false,
+  "submission": {
+   "id": 1,
+   "assignment_id": 0,
+   "user_id": 42,
+   "workflow_state": "graded",
+   "score": 92,
+   "grade": "92",
+   "submitted_at": "2026-09-18T20:00:00Z",
+   "graded_at": "2026-09-25T16:00:00Z",
+   "posted_at": "2026-09-25T16:00:00Z",
+   "late": false,
+   "missing": false,
+   "excused": false,
+   "attempt": 1
+  }
+ },
+ {
+  "id": 2002,
+  "course_id": 202,
+  "name": "Reading Quiz 3",
+  "description": null,
+  "due_at": "2026-09-29T03:59:00Z",
+  "lock_at": null,
+  "unlock_at": null,
+  "points_possible": 10,
+  "grading_type": "points",
+  "assignment_group_id": 22,
+  "submission_types": [
+   "online_quiz"
+  ],
+  "html_url": "https://school.instructure.com/courses/202/assignments/2002",
+  "published": true,
+  "omit_from_final_grade": false,
+  "is_quiz_assignment": true,
+  "has_submitted_submissions": false,
+  "submission": {
+   "id": 1,
+   "assignment_id": 0,
+   "user_id": 42,
+   "workflow_state": "graded",
+   "score": 9,
+   "grade": "9",
+   "submitted_at": "2026-09-28T18:00:00Z",
+   "graded_at": "2026-09-28T18:00:05Z",
+   "posted_at": "2026-09-28T18:00:05Z",
+   "late": false,
+   "missing": false,
+   "excused": false,
+   "attempt": 1
+  },
+  "quiz_id": 91
+ },
+ {
+  "id": 2003,
+  "course_id": 202,
+  "name": "Primary Source Essay 2",
+  "description": null,
+  "due_at": "2026-10-24T03:59:00Z",
+  "lock_at": null,
+  "unlock_at": null,
+  "points_possible": 100,
+  "grading_type": "points",
+  "assignment_group_id": 21,
+  "submission_types": [
+   "online_upload"
+  ],
+  "html_url": "https://school.instructure.com/courses/202/assignments/2003",
+  "published": true,
+  "omit_from_final_grade": false,
+  "is_quiz_assignment": false,
+  "has_submitted_submissions": false,
+  "submission": {
+   "id": 1,
+   "assignment_id": 0,
+   "user_id": 42,
+   "workflow_state": "unsubmitted",
+   "score": null,
+   "grade": null,
+   "submitted_at": null,
+   "graded_at": null,
+   "posted_at": null,
+   "late": false,
+   "missing": false,
+   "excused": false,
+   "attempt": null
+  }
+ },
+ {
+  "id": 2004,
+  "course_id": 202,
+  "name": "Final Exam",
+  "description": null,
+  "due_at": "2026-12-10T17:00:00Z",
+  "lock_at": null,
+  "unlock_at": null,
+  "points_possible": 150,
+  "grading_type": "points",
+  "assignment_group_id": 22,
+  "submission_types": [
+   "none"
+  ],
+  "html_url": "https://school.instructure.com/courses/202/assignments/2004",
+  "published": true,
+  "omit_from_final_grade": false,
+  "is_quiz_assignment": false,
+  "has_submitted_submissions": false,
+  "submission": null
+ }
+]

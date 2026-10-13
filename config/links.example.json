@@ -1,0 +1,24 @@
+{
+  "_comment": "Optional. Copy to links.json to replace the default quick links. `icon` is a Lucide icon name (https://lucide.dev/icons). `courseLinks` adds links to a class page, keyed by LMS course id or course code.",
+  "groups": [
+    {
+      "name": "School",
+      "links": [
+        { "label": "Brightspace", "description": "Courses", "url": "https://school.brightspace.com/d2l/home", "icon": "graduation-cap" },
+        { "label": "Registration", "description": "Schedule & records", "url": "https://registrar.example.edu", "icon": "landmark" },
+        { "label": "Gradescope", "description": "Submissions & feedback", "url": "https://www.gradescope.com", "icon": "file-check" },
+        { "label": "Mail", "url": "https://outlook.office.com/mail/", "icon": "mail" }
+      ]
+    },
+    {
+      "name": "Tools",
+      "links": [
+        { "label": "Google Drive", "url": "https://drive.google.com", "icon": "hard-drive" },
+        { "label": "GitHub", "url": "https://github.com", "icon": "github" }
+      ]
+    }
+  ],
+  "courseLinks": {
+    "CSCI 1301": [{ "label": "Textbook", "url": "https://example.com/textbook", "icon": "book-open" }]
+  }
+}

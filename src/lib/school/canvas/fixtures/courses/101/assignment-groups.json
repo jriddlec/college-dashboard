@@ -1,0 +1,25 @@
+[
+ {
+  "id": 11,
+  "name": "Labs",
+  "position": 1,
+  "group_weight": 40.0,
+  "rules": {}
+ },
+ {
+  "id": 12,
+  "name": "Quizzes",
+  "position": 2,
+  "group_weight": 20.0,
+  "rules": {
+   "drop_lowest": 1
+  }
+ },
+ {
+  "id": 13,
+  "name": "Exams",
+  "position": 3,
+  "group_weight": 40.0,
+  "rules": {}
+ }
+]

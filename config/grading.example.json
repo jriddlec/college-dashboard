@@ -1,0 +1,18 @@
+{
+  "_comment": "Optional. Copy to grading.json. Per-course grading rules from each syllabus, keyed by course code; used to estimate a current grade before the LMS shows one. `scale` = letter -> minimum percent. `categories` replaces the gradebook's own weighting (omit it when the gradebook already matches the syllabus). `match` is a case-insensitive regex tried on the item name, then its gradebook category. `count` = items that will count at term end (after drops). `quizLog` reads hand-kept quiz scores from a Markdown file in the library (see src/lib/school/quizlog.ts).",
+  "courses": {
+    "CSCI 1301": {
+      "source": "Syllabus §4",
+      "scale": { "A": 90, "A-": 88, "B+": 85, "B": 80, "B-": 78, "C+": 76, "C": 70, "C-": 68, "D": 60 }
+    },
+    "HIST 2111": {
+      "source": "Syllabus",
+      "categories": [
+        { "name": "Reading Quizzes", "weight": 20, "match": "^Reading Quiz", "dropLowest": 1, "equal": true },
+        { "name": "Essays", "weight": 40, "match": "^Essay" },
+        { "name": "Midterm", "weight": 15, "match": "midterm" },
+        { "name": "Final", "weight": 25, "match": "final exam" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,136 @@
+# College Dashboard. Configure with .env (copy .env.example), then:
+#   docker compose up -d --build
+# With LMS=d2l, set COMPOSE_PROFILES=d2l so the sign-in session and the sync
+# start too. Everything host-specific (paths, ports) comes from .env; put any
+# extra networks or labels for a reverse proxy in compose.override.yml.
+name: college-dashboard
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  web:
+    build: .
+    image: college-dashboard:local
+    container_name: college-dashboard
+    restart: unless-stopped
+    environment:
+      LMS: ${LMS:-fixture}
+      LMS_URL: ${LMS_URL:-}
+      LMS_LABEL: ${LMS_LABEL:-}
+      APP_NAME: ${APP_NAME:-College Dashboard}
+      SCHOOL_NAME: ${SCHOOL_NAME:-}
+      ACCENT_COLOR: ${ACCENT_COLOR:-}
+      SCHOOL_TZ: ${SCHOOL_TZ:-America/New_York}
+    volumes:
+      # All read-only: the app never writes. The sync fills DATA_DIR.
+      - ${DATA_DIR:-./data}:/data:ro
+      - ${CONFIG_DIR:-./config}:/config:ro
+      - ${LIBRARY_DIR:-./library}:/library:ro
+      - ${PREVIEWS_DIR:-./previews}:/previews:ro
+    ports:
+      - "${WEB_PORT:-127.0.0.1:3000}:3000"
+    <<: *hardening
+
+  # Brightspace: one long-lived Chromium keeps your LMS session alive and keeps
+  # a fresh API token for the sync. Sign in through noVNC at
+  # http://localhost:6080/vnc.html (first start, and after a restart or when
+  # the session expires). See docs/d2l.md.
+  d2l-session:
+    profiles: [d2l]
+    build:
+      context: .
+      dockerfile: d2l-runner/Dockerfile
+    image: college-dashboard-d2l:local
+    container_name: college-dashboard-d2l-session
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    command: ["session"]
+    environment:
+      LMS_URL: ${LMS_URL:-}
+      KEEPALIVE_SECONDS: "600"
+    ports:
+      - "${NOVNC_PORT:-127.0.0.1:6080}:6080"
+    shm_size: 1gb
+    # Playwright starts Chromium with --disable-dev-shm-usage, so its shared
+    # memory goes to /tmp: keep it in RAM, not on your disk (gigabytes a day).
+    tmpfs:
+      - /tmp
+    volumes:
+      # Session cookies and the token: keep private (mode 700), never share.
+      - ${D2L_AUTH_DIR:-./d2l-auth}:/home/d2l/.d2l
+    security_opt:
+      - no-new-privileges:true
+
+  # Brightspace -> DATA_DIR every SYNC_INTERVAL seconds, using d2l-session's
+  # token (read-only). Read-only against the LMS: it never submits or changes anything.
+  d2l-sync:
+    profiles: [d2l]
+    image: college-dashboard-d2l:local
+    container_name: college-dashboard-d2l-sync
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    command: ["sync"]
+    environment:
+      SYNC_INTERVAL: ${SYNC_INTERVAL:-1800}
+    volumes:
+      - ${D2L_AUTH_DIR:-./d2l-auth}:/home/d2l/.d2l:ro
+      - ${DATA_DIR:-./data}:/data
+    depends_on:
+      - d2l-session
+    <<: *hardening
+
+  # Canvas -> DATA_DIR every SYNC_INTERVAL seconds with your personal access
+  # token. GET requests only: it never submits, posts or changes anything.
+  # The token stays in this container (the web app never sees it). See docs/canvas.md.
+  canvas-sync:
+    profiles: [canvas]
+    build:
+      context: .
+      dockerfile: canvas-runner/Dockerfile
+    image: college-dashboard-canvas:local
+    container_name: college-dashboard-canvas-sync
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    command: ["--dest", "/data", "--every", "${SYNC_INTERVAL:-1800}"]
+    environment:
+      LMS_URL: ${LMS_URL:-}
+      CANVAS_TOKEN: ${CANVAS_TOKEN:-}
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+    <<: *hardening
+
+  # One-shot: create Notes / Classwork / Important Documents folders for each
+  # class that has no library folders yet (never touches existing ones):
+  #   docker compose run --rm init [--dry-run]
+  init:
+    profiles: [tools]
+    image: python:3.13-alpine
+    user: "${PUID:-1000}:${PGID:-1000}"
+    entrypoint: ["python3", "/scripts/init_library.py"]
+    volumes:
+      - ./scripts/init_library.py:/scripts/init_library.py:ro
+      - ${LIBRARY_DIR:-./library}:/library
+    depends_on:
+      - web
+    <<: *hardening
+
+  # One-shot: Office files in the library -> PDF previews that open in the
+  # browser. Re-run after adding material:
+  #   docker compose run --rm convert
+  convert:
+    profiles: [tools]
+    build: ./converter
+    image: college-dashboard-convert:local
+    user: "${PUID:-1000}:${PGID:-1000}"
+    network_mode: none
+    volumes:
+      - ${LIBRARY_DIR:-./library}:/library:ro
+      - ${PREVIEWS_DIR:-./previews}:/previews
+    <<: *hardening
