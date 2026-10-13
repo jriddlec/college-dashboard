@@ -41,7 +41,7 @@ on localhost, your LAN, or a VPN like Tailscale. Never expose it to the internet
 ## Quick start (demo data)
 
 ```bash
-git clone https://github.com/<you>/college-dashboard
+git clone https://github.com/jriddlec/college-dashboard
 cd college-dashboard
 cp .env.example .env
 mkdir -p data previews d2l-auth
