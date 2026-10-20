@@ -7,6 +7,7 @@ import { DemoBanner } from "@/components/data-state";
 import { dataSource } from "@/lib/school";
 import { getLibraryCourses } from "@/lib/library";
 import { ACCENT_COLOR, APP_NAME, SCHOOL_NAME, accentCss } from "@/lib/settings";
+import { getSyncStatus } from "@/lib/sync-status";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
     description: "Classes, assignments, grades and study material",
     appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
+    icons: { apple: "/app-icon/180" },
   };
 }
 
@@ -27,7 +29,9 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const courses: NavCourse[] = (await getLibraryCourses().catch(() => [])).map(({ slug, code, hue, icon }) => ({ slug, code, hue, icon }));
-  const brand = { appName: APP_NAME, schoolName: SCHOOL_NAME };
+  const s = await getSyncStatus().catch(() => null);
+  const sync = s && { fetchedAt: s.fetchedAt, level: s.level, needsLogin: s.session?.state === "needs_login", lastFailed: s.lastFailed };
+  const brand = { appName: APP_NAME, schoolName: SCHOOL_NAME, sync };
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} antialiased`} suppressHydrationWarning>
       <head>

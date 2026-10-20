@@ -109,6 +109,8 @@ export type Material = {
   /** Download link for the primary file (original, not a converted preview). */
   download: string;
   upcoming: boolean;
+  /** Newest file time among its formats (ms), for "new since last visit". */
+  modifiedAt: number;
 };
 
 export type Group = {
@@ -256,6 +258,7 @@ export function materialsOf(files: FileEntry[], ctx: Ctx): Material[] {
       alternates: rest.map((f) => format(f, ctx.previews)),
       download: hrefFor(first.path, "download"),
       upcoming: date != null && date > ctx.today,
+      modifiedAt: Math.max(...group.map((f) => f.mtimeMs)),
     });
   }
   return out.sort(byDateThenTitle);

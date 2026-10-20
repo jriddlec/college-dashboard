@@ -11,6 +11,9 @@ import { formatShortDate, relative } from "@/lib/school/time";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { GradeTable } from "@/components/grade-table";
 import { GradeTrend } from "@/components/grade-trend";
+import { GradeCalculator } from "@/components/grade-calculator";
+import { NewBadge } from "@/components/new-badge";
+import { DEFAULT_SCALE } from "@/lib/school/gpa";
 import { DataUnavailable } from "@/components/data-state";
 import { EmptyState, Section, Stat, hueStyle } from "@/components/ui";
 
@@ -137,6 +140,12 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
             </Section>
           )}
 
+          {standing && !total && standing.gradedWeight < 100 && (
+            <Section title="What do I need?">
+              <GradeCalculator percent={standing.percent} gradedWeight={standing.gradedWeight} scale={standing.scale ?? DEFAULT_SCALE} />
+            </Section>
+          )}
+
           <Section title="Grades" count={items.length || undefined}>
             {items.length === 0 ? (
               <div className="card">
@@ -192,7 +201,9 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
                 {news.slice(0, 6).map((n) => (
                   <li key={n.id} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-[13px] font-medium leading-snug">{n.title}</span>
+                      <span className="text-[13px] font-medium leading-snug">
+                        {n.title} <NewBadge at={n.postedAt} className="ml-1 align-middle" />
+                      </span>
                       <span className="text-[11.5px] text-subtle whitespace-nowrap">{relative(n.postedAt, now)}</span>
                     </div>
                     {n.body && <p className="text-[12.5px] text-muted mt-1 line-clamp-3 whitespace-pre-line">{n.body}</p>}

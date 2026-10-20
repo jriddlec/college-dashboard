@@ -13,7 +13,7 @@
  * weights categories. Source-agnostic: providers build the `Gradebook`.
  */
 import type { CourseStanding } from "./types";
-import { letterFor, type Scale } from "./gpa";
+import { DEFAULT_SCALE, letterFor, type Scale } from "./gpa";
 
 export interface GradebookItem {
   id: string;
@@ -188,6 +188,7 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
     gradedWeight: Math.round(now.gradedWeight),
     basis: syllabus?.categories?.length ? "syllabus" : "gradebook",
     scaleSource: syllabus?.scale ? syllabus.source : null,
+    scale: syllabus?.scale ?? DEFAULT_SCALE,
     history: [...byDay.values()],
     sectionWeights,
   };

@@ -28,6 +28,9 @@ services:
       SCHOOL_NAME: ${SCHOOL_NAME:-}
       ACCENT_COLOR: ${ACCENT_COLOR:-}
       SCHOOL_TZ: ${SCHOOL_TZ:-America/New_York}
+      # Shown on /status when the D2L session needs a sign-in (see .env.example).
+      SIGNIN_URL: ${SIGNIN_URL:-}
+      SIGNIN_HINT: ${SIGNIN_HINT:-}
     volumes:
       # All read-only: the app never writes. The sync fills DATA_DIR.
       - ${DATA_DIR:-./data}:/data:ro
@@ -55,6 +58,8 @@ services:
     environment:
       LMS_URL: ${LMS_URL:-}
       KEEPALIVE_SECONDS: "600"
+      NOTIFY_URL: ${NOTIFY_URL:-}
+      APP_URL: ${APP_URL:-}
     ports:
       - "${NOVNC_PORT:-127.0.0.1:6080}:6080"
     shm_size: 1gb
@@ -79,6 +84,8 @@ services:
     command: ["sync"]
     environment:
       SYNC_INTERVAL: ${SYNC_INTERVAL:-1800}
+      NOTIFY_URL: ${NOTIFY_URL:-}
+      APP_URL: ${APP_URL:-}
     volumes:
       - ${D2L_AUTH_DIR:-./d2l-auth}:/home/d2l/.d2l:ro
       - ${DATA_DIR:-./data}:/data

@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { NewBadge } from "../new-badge";
 import type { CSSProperties } from "react";
 import {
   BookOpen,
@@ -92,6 +93,7 @@ export function MaterialRow({ m, context, hue }: { m: Material; context?: string
           {context && <span className="text-[12px] text-muted">{context}</span>}
           <Badge tone={meta.tone}>{meta.label}</Badge>
           {m.upcoming && <Badge tone="warn">Upcoming</Badge>}
+          <NewBadge at={m.modifiedAt} />
           <span className="text-[11px] font-mono uppercase text-subtle">{m.primary.ext}</span>
           {m.alternates.map((a) => (
             <a

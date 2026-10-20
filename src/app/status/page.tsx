@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { CircleAlert, CircleCheck, CloudOff, FlaskConical } from "lucide-react";
+import { ArrowUpRight, CircleAlert, CircleCheck, CloudOff, FlaskConical, KeyRound } from "lucide-react";
 import { dataDir, dataSource, getSchoolData } from "@/lib/school";
 import { configDir } from "@/lib/config";
 import { libraryDir } from "@/lib/library";
-import { LMS_LABEL, LMS_URL } from "@/lib/settings";
+import { LMS_LABEL, LMS_URL, SIGNIN_HINT, SIGNIN_URL } from "@/lib/settings";
+import { getSyncStatus } from "@/lib/sync-status";
+import { CopyText } from "@/components/copy-text";
 import { formatDateTime, relative } from "@/lib/school/time";
 import { PageHeader, Section } from "@/components/ui";
 
@@ -14,6 +16,9 @@ export default async function StatusPage() {
   const source = dataSource();
   const now = new Date();
   const s = result.status === "ok" ? result.snapshot : null;
+  const sync = await getSyncStatus(now);
+  const session = sync?.session ?? null;
+  const SESSION_LABEL = { ok: "Signed in", needs_login: "Sign-in needed", refresh_failed: "Token refresh failing", unknown: "Unknown (no status from the sync yet)" };
 
   const rows: [string, React.ReactNode][] = [
     ["Source", source === "fixture" ? "Demo fixtures" : source === "d2l" ? `${LMS_LABEL} (Brightspace) via d2l-cli` : `${LMS_LABEL} via the Canvas API`],
@@ -23,6 +28,8 @@ export default async function StatusPage() {
     ["Library directory", <code key="l" className="font-mono text-[12px]">{libraryDir()}</code>],
     ["Last sync", s ? `${formatDateTime(s.generatedAt)} (${relative(s.generatedAt, now)})` : "—"],
   ];
+  if (sync?.lastFailed && sync.lastAttemptAt) rows.push(["Latest attempt", <span key="a" className="text-warn">Failed {relative(sync.lastAttemptAt, now)}</span>]);
+  if (session) rows.push(["Sign-in session", `${SESSION_LABEL[session.state]}${session.at ? ` · checked ${relative(session.at, now)}` : ""}`]);
   if (s) {
     rows.push(
       ["Courses", s.courses.length],
@@ -40,7 +47,11 @@ export default async function StatusPage() {
         ? [CloudOff, "text-warn", "No data yet", result.reason]
         : source === "fixture"
           ? [FlaskConical, "text-warn", "Showing demo data", "Set LMS=d2l or LMS=canvas (and LMS_URL) to use your school’s data."]
-          : [CircleCheck, "text-ok", "Connected", `${LMS_LABEL} data is loading normally.`];
+          : session?.state === "needs_login"
+            ? [CloudOff, "text-danger", "Syncing paused", `Showing the last synced ${LMS_LABEL} data until you sign in again.`]
+            : sync?.lastFailed
+              ? [CircleAlert, "text-warn", "Latest sync failed", `Showing the last synced ${LMS_LABEL} data; the next sync will retry.`]
+              : [CircleCheck, "text-ok", "Connected", `${LMS_LABEL} data is loading normally.`];
 
   return (
     <div className="max-w-2xl">
@@ -52,6 +63,35 @@ export default async function StatusPage() {
           <p className="text-[13px] text-muted mt-0.5">{detail}</p>
         </div>
       </div>
+
+      {session && session.state !== "ok" && (
+        <div className="card p-4 mb-8 border-danger/40">
+          <div className="flex items-start gap-3">
+            <KeyRound className={`size-5 mt-0.5 ${session.state === "needs_login" ? "text-danger" : "text-warn"}`} />
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <p className="text-[14px] font-medium">{session.state === "needs_login" ? `Sign in to ${LMS_LABEL}` : `${LMS_LABEL} session is having trouble`}</p>
+                <p className="text-[13px] text-muted mt-0.5">
+                  {session.state === "needs_login"
+                    ? "The saved session expired, so syncing has stopped. Sign in in the session browser; the dashboard notices within 15 seconds and syncs right after."
+                    : "Token refreshes are failing. Signing in again usually fixes it."}
+                </p>
+              </div>
+              {SIGNIN_HINT && <CopyText text={SIGNIN_HINT} />}
+              {SIGNIN_URL && (
+                <a
+                  href={SIGNIN_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent text-white px-3 py-1.5 text-[13px] font-medium hover:opacity-90"
+                >
+                  Open sign-in <ArrowUpRight className="size-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Section title="Details">
         <dl className="card divide-y divide-border">

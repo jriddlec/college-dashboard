@@ -4,6 +4,7 @@ import { CalendarCheck, CircleAlert, Coffee, MapPin } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
 import { getLinks } from "@/lib/links";
 import { getTranscript } from "@/lib/transcript";
+import { getLibrary } from "@/lib/library";
 import { agenda, byDue, courseMap, groupAssignments, isDone, limitGroups, urgencyOf } from "@/lib/school/derive";
 import { dayKey, formatLongDate, formatTime, hourOfDay } from "@/lib/school/time";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
@@ -13,7 +14,7 @@ import { EmptyState, Section, SectionLink, Stat, Badge, CourseTag, hueStyle } fr
 import { OverviewWidgets } from "@/components/widgets";
 import { LinkIcon } from "@/components/link-icon";
 import { HideOverdueButton, ShowHiddenOverdue } from "@/components/hide-overdue";
-import { HIDDEN_OVERDUE_COOKIE } from "@/lib/hidden-overdue";
+import { HIDDEN_OVERDUE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import { LMS_LABEL } from "@/lib/settings";
 
 const UPCOMING_LIMIT = 8;
@@ -25,7 +26,7 @@ export default async function Home() {
   const now = new Date();
   const today = dayKey(now);
   const courses = courseMap(snapshot.courses);
-  const [links, transcript] = await Promise.all([getLinks(), getTranscript()]);
+  const [links, transcript, library] = await Promise.all([getLinks(), getTranscript(), getLibrary().catch(() => null)]);
 
   const open = snapshot.assignments.filter((a) => !isDone(a));
   const overdue = open.filter((a) => urgencyOf(a, now) === "overdue").sort(byDue);
@@ -193,7 +194,7 @@ export default async function Home() {
             )}
           </Section>
 
-          <OverviewWidgets snapshot={snapshot} now={now} transcript={transcript} />
+          <OverviewWidgets snapshot={snapshot} now={now} transcript={transcript} library={library} />
         </aside>
       </div>
 
@@ -223,12 +224,5 @@ export default async function Home() {
 }
 
 async function readHiddenOverdue(): Promise<string[]> {
-  const raw = (await cookies()).get(HIDDEN_OVERDUE_COOKIE)?.value;
-  if (!raw) return [];
-  try {
-    const ids: unknown = JSON.parse(decodeURIComponent(raw));
-    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
+  return parseIdCookie((await cookies()).get(HIDDEN_OVERDUE_COOKIE)?.value);
 }

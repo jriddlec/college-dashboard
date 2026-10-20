@@ -31,6 +31,7 @@ import {
 import clsx from "clsx";
 import type { CSSProperties } from "react";
 import { ThemeToggle } from "./theme-toggle";
+import { SyncDot, SyncLabel, type NavSync } from "./sync-dot";
 
 /** Icon names accepted in courses.json `icon`. */
 const COURSE_ICONS: Record<string, LucideIcon> = {
@@ -52,7 +53,7 @@ const COURSE_ICONS: Record<string, LucideIcon> = {
 };
 
 export type NavCourse = { slug: string; code: string; hue: number; icon: string | null };
-type Brand = { appName: string; schoolName: string };
+type Brand = { appName: string; schoolName: string; sync: NavSync | null };
 
 const NAV = [
   { href: "/", label: "Home", icon: House },
@@ -82,7 +83,7 @@ const itemClass = (active: boolean) =>
     active ? "bg-surface-2 text-fg font-medium" : "text-muted hover:bg-surface-2/70 hover:text-fg",
   );
 
-export function Sidebar({ courses, appName, schoolName }: { courses: NavCourse[] } & Brand) {
+export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCourse[] } & Brand) {
   const pathname = usePathname();
   return (
     <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-sidebar h-dvh sticky top-0">
@@ -119,9 +120,22 @@ export function Sidebar({ courses, appName, schoolName }: { courses: NavCourse[]
         })}
       </nav>
       <div className="px-2 py-3 border-t border-border space-y-1">
-        <Link href="/status" className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal")}>
-          <Database className="size-4" strokeWidth={1.8} />
-          Data status
+        <Link
+          href="/status"
+          className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal", sync?.level === "bad" && "text-danger", sync?.level === "warn" && "text-warn")}
+        >
+          <span className="relative">
+            <Database className="size-4" strokeWidth={1.8} />
+            {sync && <SyncDot sync={sync} className="absolute -right-0.5 -bottom-0.5 ring-2 ring-sidebar" />}
+          </span>
+          <span className="min-w-0 leading-tight">
+            Data status
+            {sync && (
+              <span className="block text-[11px] text-subtle truncate">
+                <SyncLabel sync={sync} />
+              </span>
+            )}
+          </span>
         </Link>
         <ThemeToggle />
       </div>
@@ -153,7 +167,7 @@ export function MobileNav() {
   );
 }
 
-export function MobileHeader({ appName }: Brand) {
+export function MobileHeader({ appName, sync }: Brand) {
   return (
     <header className="md:hidden sticky top-0 z-20 flex items-center justify-between h-12 px-4 border-b border-border bg-bg/95 backdrop-blur">
       <Link href="/" className="flex items-center gap-2">
@@ -164,8 +178,9 @@ export function MobileHeader({ appName }: Brand) {
         <Link href="/links" aria-label="Links" className="p-2 text-muted">
           <Link2 className="size-4" />
         </Link>
-        <Link href="/status" aria-label="Data status" className="p-2 text-muted">
+        <Link href="/status" aria-label="Data status" className={clsx("relative p-2", sync?.level === "bad" ? "text-danger" : "text-muted")}>
           <Database className="size-4" />
+          {sync && sync.level !== "ok" && <SyncDot sync={sync} className="absolute right-1.5 bottom-1.5 ring-2 ring-bg" />}
         </Link>
         <ThemeToggle compact />
       </div>

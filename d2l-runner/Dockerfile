@@ -16,7 +16,7 @@ RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install --no-cache-dir \
 
 # Context is the app dir (see Dockerfile.dockerignore). The sync script is
 # baked in, so rebuild the image after changing it.
-COPY d2l-runner/entrypoint.sh d2l-runner/keeper.py scripts/d2l_sync.py /opt/d2l-runner/
+COPY d2l-runner/entrypoint.sh d2l-runner/keeper.py scripts/d2l_sync.py scripts/notify.py /opt/d2l-runner/
 # Runs as the host user that owns the data volumes (compose `user:`, PUID/PGID);
 # Chromium needs a writable $HOME for ~/.config and crashpad, or it dies at launch.
 RUN chmod 755 /opt/d2l-runner/entrypoint.sh \

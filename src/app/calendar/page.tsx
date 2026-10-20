@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getSchoolData } from "@/lib/school";
-import { agenda, courseLabel, courseMap, isDone, urgencyOf, type AgendaItem } from "@/lib/school/derive";
+import { agenda, courseLabel, courseMap, isDone, urgencyOf, weeklyLoad, type AgendaItem } from "@/lib/school/derive";
+import { Section } from "@/components/ui";
+import { Workload } from "@/components/workload";
+import { SubscribeCalendar } from "@/components/subscribe-calendar";
 import { addDays, dayKey, formatKey, formatTime, weekday } from "@/lib/school/time";
 import { DataUnavailable } from "@/components/data-state";
 import { LMS_LABEL } from "@/lib/settings";
@@ -131,6 +134,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const cells = Array.from({ length: weeks * 7 }, (_, i) => addDays(gridStart, i));
 
   return (
+    <>
     <CalendarView
       lmsLabel={LMS_LABEL}
       month={month}
@@ -147,5 +151,16 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       items={items}
       bonuses={bonuses}
     />
+    <div className="grid lg:grid-cols-2 gap-x-8 gap-y-8 mt-10">
+      <Section title="Workload" action={<span className="text-[11.5px] text-subtle">open deadlines per week</span>}>
+        <div className="card overflow-hidden">
+          <Workload weeks={weeklyLoad(snapshot.assignments, now, 8)} courses={courses} />
+        </div>
+      </Section>
+      <Section title="Subscribe">
+        <SubscribeCalendar />
+      </Section>
+    </div>
+    </>
   );
 }

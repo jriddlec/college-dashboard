@@ -9,7 +9,7 @@ import { addDays, dayKey, daysBetween, formatKey, weekday } from "./time";
 export type Urgency = "done" | "overdue" | "past" | "today" | "soon" | "week" | "later" | "undated";
 
 export function isDone(a: Assignment): boolean {
-  return a.status === "submitted" || a.status === "graded";
+  return a.status === "submitted" || a.status === "graded" || !!a.markedDone;
 }
 
 export function urgencyOf(a: Assignment, now: Date): Urgency {
@@ -41,7 +41,7 @@ export function groupLabel(key: GroupKey): string {
 }
 
 /** Monday of the calendar week containing `key` (YYYY-MM-DD). */
-function mondayOf(key: string): string {
+export function mondayOf(key: string): string {
   return addDays(key, -((weekday(key) + 6) % 7));
 }
 
@@ -170,4 +170,34 @@ export function courseHue(courseId: string | null | undefined): number {
 export function courseLabel(c: Course | undefined): string {
   if (!c) return "General";
   return c.code ?? c.name;
+}
+
+export interface WeekLoad {
+  /** Monday, YYYY-MM-DD. */
+  week: string;
+  label: string;
+  total: number;
+  points: number;
+  /** Open items per course, largest first. */
+  byCourse: { courseId: string; count: number }[];
+}
+
+/** Open (not done) deadlines per Monday–Sunday week, starting with this week. */
+export function weeklyLoad(items: Assignment[], now: Date, weeks = 6): WeekLoad[] {
+  const first = mondayOf(dayKey(now));
+  const out: WeekLoad[] = Array.from({ length: weeks }, (_, i) => {
+    const week = addDays(first, i * 7);
+    return { week, label: i === 0 ? "This week" : i === 1 ? "Next week" : formatKey(week, { month: "short", day: "numeric" }), total: 0, points: 0, byCourse: [] };
+  });
+  const counts = out.map(() => new Map<string, number>());
+  for (const a of items) {
+    if (!a.dueAt || isDone(a) || Date.parse(a.dueAt) < now.getTime()) continue;
+    const i = daysBetween(first, mondayOf(dayKey(a.dueAt))) / 7;
+    if (i < 0 || i >= weeks) continue;
+    out[i].total++;
+    out[i].points += a.pointsPossible ?? 0;
+    counts[i].set(a.courseId, (counts[i].get(a.courseId) ?? 0) + 1);
+  }
+  out.forEach((w, i) => (w.byCourse = [...counts[i]].map(([courseId, count]) => ({ courseId, count })).sort((a, b) => b.count - a.count)));
+  return out;
 }

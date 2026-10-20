@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Grade } from "@/lib/school/types";
 import { formatShortDate } from "@/lib/school/time";
+import { NewBadge } from "./new-badge";
 
 /** Fallback types for items without a gradebook category, in display order. */
 const TYPES: [string, RegExp][] = [
@@ -123,6 +124,7 @@ export function GradeTable({ items, weights }: { items: Grade[]; weights?: Recor
                 <tr key={g.id}>
                   <td className="px-4 py-2.5">
                     {g.name}
+                    <NewBadge at={g.postedAt} className="ml-2 align-middle" />
                     {!grouped && !filter && <span className="text-subtle text-[11.5px] ml-2">{t}</span>}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums whitespace-nowrap">

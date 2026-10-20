@@ -29,7 +29,15 @@ docker compose up -d --build
    tunnel the port first: `ssh -N -L 6080:127.0.0.1:6080 yourserver`.
 2. Sign in to Brightspace in the browser shown, as you normally would (SSO,
    Duo, and so on).
-3. Within about 15 seconds the session container notices and the sync starts.
+3. Within about 15 seconds the session container notices, and the sync runs
+   within a minute.
+
+When the session expires, the nav's Data status dot turns red and the Data
+status page shows a **Sign in** button (`SIGNIN_URL`, default the local noVNC
+page) with `SIGNIN_HINT` (e.g. your SSH tunnel command) next to it. With
+`NOTIFY_URL` set you also get an alert. d2l-sync copies the session state to
+`DATA_DIR/d2l/session.json` every minute so the web app (which can't read
+`D2L_AUTH_DIR`) can show it.
 
 Many schools' sign-in cookies only last while the browser runs, so expect to
 sign in again after the session container restarts (a reboot, an image

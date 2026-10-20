@@ -49,6 +49,8 @@ export const AssignmentSchema = z.object({
   earlyBonusAt: isoDate.nullable().optional(),
   /** Size of that bonus, in percent of the item. */
   earlyBonusPercent: z.number().nullable().optional(),
+  /** The student marked it done on the dashboard (no LMS signal). */
+  markedDone: z.boolean().optional(),
 });
 export type Assignment = z.infer<typeof AssignmentSchema>;
 
@@ -99,6 +101,8 @@ export const CourseStandingSchema = z.object({
   basis: z.enum(["syllabus", "gradebook"]),
   /** Syllabus the letter scale came from, or null for the default scale. */
   scaleSource: z.string().nullable(),
+  /** Letter scale the estimate uses (letter → minimum percent). */
+  scale: z.record(z.string(), z.number()).optional(),
   /** Percent of the final grade per gradebook category name (only when the whole category maps to one weight). */
   sectionWeights: z.record(z.string(), z.number()).default({}),
   /** Per-day estimate, oldest first; `items` are the scores entered that day (the chart's pins). */

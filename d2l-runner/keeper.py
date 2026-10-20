@@ -20,6 +20,7 @@ from playwright.sync_api import sync_playwright
 from d2l.cli import _make_client_factory
 from d2l.commands.auth_cmd import _request_token_in_page, _save_token
 from d2l.config import BROWSER_PROFILE, TOKEN_DIR, TOKEN_FILE, get_lms_host
+from notify import notify
 
 KEEPALIVE = int(os.environ.get("KEEPALIVE_SECONDS", "600"))
 LOGIN_POLL = 15
@@ -89,6 +90,7 @@ def main():
                     state = "needs_login"
                     record("needs_login")
                     write_status("needs_login")
+                    notify("Sign in to your LMS", "The sign-in session expired, so syncing has stopped. Open Data status for the sign-in link.", "/status", "key", "high")
                     continue
                 exp = mint(page)
                 api = api_ok() if exp else None
@@ -104,6 +106,7 @@ def main():
                 if live:
                     page = live
                     record("signed_in")
+                    notify("Signed in", "The LMS session is back; a sync starts within a minute.", "/status", "white_check_mark", "low")
                     state, next_keepalive = "ok", 0.0
                     continue
 

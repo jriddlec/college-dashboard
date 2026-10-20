@@ -9,6 +9,7 @@
  */
 import "server-only";
 import { connection } from "next/server";
+import { cookies } from "next/headers";
 import path from "node:path";
 import { buildFixtureSnapshot } from "./providers/fixture";
 import { loadD2lSnapshot } from "./providers/d2l";
@@ -17,6 +18,7 @@ import { withWebAssign } from "./webassign";
 import { withSyllabusItems } from "./syllabus";
 import { getCourseOverrides, getGrading, getSyllabusConfig, getWebAssignConfig, type CourseOverride } from "@/lib/config";
 import { LMS, type Lms } from "@/lib/settings";
+import { MARKED_DONE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import type { Course, SnapshotResult } from "./types";
 
 export type DataSource = Lms;
@@ -41,7 +43,13 @@ export async function getSchoolData(): Promise<SnapshotResult> {
   else result = await loadCanvasSnapshot(dataDir(), grading.value, webassign.value);
   if (result.status !== "ok") return result;
   const merged = withSyllabusItems(withWebAssign(result.snapshot, webassign.value), syllabus.value);
-  const snapshot = { ...merged, courses: merged.courses.map((c) => withOverride(c, overrides.value)) };
+  // Items the user ticked off by hand (stored in a cookie: the app never writes to disk).
+  const marked = new Set(await readMarkedDone());
+  const snapshot = {
+    ...merged,
+    courses: merged.courses.map((c) => withOverride(c, overrides.value)),
+    assignments: marked.size ? merged.assignments.map((a) => (marked.has(a.id) ? { ...a, markedDone: true } : a)) : merged.assignments,
+  };
   const configErrors = [grading.error, syllabus.error, webassign.error, overrides.error].filter((e): e is string => !!e);
   return { status: "ok", snapshot: configErrors.length ? { ...snapshot, warnings: [...configErrors, ...snapshot.warnings] } : snapshot };
 }
@@ -53,3 +61,12 @@ function withOverride(c: Course, o: Record<string, CourseOverride>): Course {
 }
 
 export * from "./types";
+
+/** Assignment ids marked done in this browser; empty outside a request (no cookies). */
+export async function readMarkedDone(): Promise<string[]> {
+  try {
+    return parseIdCookie((await cookies()).get(MARKED_DONE_COOKIE)?.value);
+  } catch {
+    return [];
+  }
+}

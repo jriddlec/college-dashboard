@@ -49,14 +49,29 @@ case "${1:-session}" in
     # second browser on the shared profile.
     export D2L_NO_AUTO_LOGIN=1
     need_writable /data "DATA_DIR" "data"
+    mkdir -p /data/d2l
+    # Every minute: publish the session state for the web app (/data/d2l/session.json;
+    # the app can't read ~/.d2l), and sync right away when a sign-in brings it back.
+    next=0
+    last_state=""
     while :; do
-      if [ ! -f "$D2L_DIR/token.json" ]; then
-        echo "$(date -u +%FT%T) d2l-sync: no session yet; waiting for d2l-session (sign in at http://localhost:6080/vnc.html)"
-        sleep 60
-        continue
+      state=""
+      if [ -f "$D2L_DIR/status.json" ]; then
+        cp "$D2L_DIR/status.json" /data/d2l/session.json.new && chmod a+r /data/d2l/session.json.new && mv -f /data/d2l/session.json.new /data/d2l/session.json
+        state=$(sed -n 's/.*"state": *"\([a-z_]*\)".*/\1/p' "$D2L_DIR/status.json")
       fi
-      python3 /opt/d2l-runner/d2l_sync.py --dest /data || true
-      sleep "${SYNC_INTERVAL:-1800}"
+      if [ "$state" = "ok" ] && [ -n "$last_state" ] && [ "$last_state" != "ok" ]; then next=0; fi
+      last_state=$state
+      now=$(date +%s)
+      if [ "$now" -ge "$next" ]; then
+        if [ ! -f "$D2L_DIR/token.json" ]; then
+          echo "$(date -u +%FT%T) d2l-sync: no session yet; waiting for d2l-session (sign in at http://localhost:6080/vnc.html)"
+        else
+          python3 /opt/d2l-runner/d2l_sync.py --dest /data || true
+          next=$(( $(date +%s) + ${SYNC_INTERVAL:-1800} ))
+        fi
+      fi
+      sleep 60
     done
     ;;
   *)

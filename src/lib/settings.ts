@@ -57,3 +57,8 @@ export function lmsCourseLinks(id: string): { label: string; url: string }[] {
     { label: "Announcements", url: u(`/d2l/lms/news/main.d2l?ou=${id}`) },
   ];
 }
+
+/** Brightspace sign-in page for the d2l-session browser (noVNC), shown on /status when a sign-in is needed. */
+export const SIGNIN_URL = process.env.SIGNIN_URL || (LMS === "d2l" ? "http://localhost:6080/vnc.html?autoconnect=1&resize=scale" : "");
+/** Extra instructions next to it, e.g. the SSH tunnel command for a server. */
+export const SIGNIN_HINT = process.env.SIGNIN_HINT || "";

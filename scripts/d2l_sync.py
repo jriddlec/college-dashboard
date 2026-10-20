@@ -35,6 +35,13 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from notify import notify
+except ImportError:  # notify.py not shipped alongside: alerts off
+    def notify(*_a, **_k):
+        return False
+
 REMOTE_DATA = "/srv/appdata/college-dashboard/data"
 STEP_TIMEOUT = 180
 KEEP = 5
@@ -180,6 +187,84 @@ def collect_gradebook(runner: Runner, client, out: Path, cid: str) -> None:
                 log(f"{name} {cid} failed: {type(e).__name__}: {str(e)[:200]}")
 
 
+# --- alerts ---------------------------------------------------------------
+
+FAIL_ALERT_AFTER = 2  # consecutive failed syncs before alerting (one blip isn't news)
+
+
+def _load(p: Path) -> object:
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _course_names(snap: Path) -> dict[str, str]:
+    names = {}
+    data = _load(snap / "courses.json")
+    items = data if isinstance(data, list) else next((v for v in (data or {}).values() if isinstance(v, list)), [])
+    for c in items:
+        ou = c.get("OrgUnit", {})
+        code = re.search(r"[A-Z]{3,4}\s?\d{4}[A-Z]?", ou.get("Code") or ou.get("Name") or "")
+        names[str(ou.get("Id"))] = code.group(0) if code else (ou.get("Name") or "")[:40]
+    return names
+
+
+def _grades(snap: Path) -> dict[tuple[str, str], tuple[str, str]]:
+    """(course, grade object) → (name, score text) for released item scores (not categories)."""
+    out = {}
+    for f in (snap / "courses").glob("*/grades.json"):
+        for g in _load(f) or []:
+            if not isinstance(g, dict) or g.get("GradeObjectTypeName") in ("Category", "Calculated", "Final Calculated", "Final Adjusted"):
+                continue
+            num, den = g.get("PointsNumerator"), g.get("PointsDenominator")
+            score = g.get("DisplayedGrade") or (f"{num:g}/{den:g}" if isinstance(num, (int, float)) and den else None)
+            if score is not None:
+                out[(f.parent.name, str(g.get("GradeObjectIdentifier")))] = (g.get("GradeObjectName") or "Grade", str(score).strip())
+    return out
+
+
+def _news(snap: Path) -> dict[tuple[str, str], str]:
+    out = {}
+    for f in (snap / "courses").glob("*/news.json"):
+        for n in _load(f) or []:
+            if isinstance(n, dict) and not n.get("IsHidden") and n.get("IsPublished", True):
+                out[(f.parent.name, str(n.get("Id")))] = n.get("Title") or "Announcement"
+    return out
+
+
+def alert_changes(prev: Path, new: Path) -> None:
+    """New or changed grades and new announcements since the previous snapshot."""
+    if not (prev / "manifest.json").exists():
+        return  # first sync: everything is "new"
+    names = _course_names(new)
+    old_g, new_g = _grades(prev), _grades(new)
+    changed = [(k, v) for k, v in new_g.items() if old_g.get(k) != v]
+    if changed:
+        lines = [f"{names.get(c, c)} · {name}: {score}" for (c, _), (name, score) in changed[:8]]
+        more = f"\n…and {len(changed) - 8} more" if len(changed) > 8 else ""
+        notify(f"{len(changed)} new grade{'s' if len(changed) > 1 else ''}", "\n".join(lines) + more, "/", "mortar_board")
+    old_n = _news(prev)
+    fresh = [(k, t) for k, t in _news(new).items() if k not in old_n]
+    for (c, _), title in fresh[:5]:
+        notify(f"{names.get(c, c)} announcement", title, f"/courses/{c}", "loudspeaker")
+
+
+def track_failures(root: Path, ok: bool) -> None:
+    """Alerts once after FAIL_ALERT_AFTER failed syncs in a row, and once on recovery."""
+    state_file = root / "alert-state.json"
+    state = _load(state_file) or {}
+    fails = 0 if ok else int(state.get("fails", 0)) + 1
+    if fails == FAIL_ALERT_AFTER:
+        notify("School sync is failing", "The last syncs couldn't reach the LMS; the dashboard is showing older data. Sign in again if the session expired.", "/status", "warning", "high")
+    elif ok and int(state.get("fails", 0)) >= FAIL_ALERT_AFTER:
+        notify("School sync is back", "Syncing works again.", "/status", "white_check_mark")
+    try:
+        state_file.write_text(json.dumps({"fails": fails}), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
@@ -264,7 +349,14 @@ def main() -> int:
             if args.push:
                 deliver_push(args.push, args.remote_dir, stamp if ok else "-", snap if ok else None, attempt)
             else:
+                prev = (args.dest / "d2l" / "current").resolve()
                 deliver_local(args.dest, stamp, snap if ok else None, attempt)
+                if ok:
+                    try:
+                        alert_changes(prev, args.dest / "d2l" / "current")
+                    except Exception as e:  # noqa: BLE001 — alerts never fail the sync
+                        log(f"alert check failed: {type(e).__name__}: {e}")
+                track_failures(args.dest / "d2l", ok)
         except Exception as e:  # noqa: BLE001 — report and exit non-zero for the scheduler
             log(str(e))
             return 1

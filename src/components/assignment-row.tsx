@@ -4,6 +4,7 @@ import type { Assignment, Course } from "@/lib/school/types";
 import { urgencyOf, type Urgency } from "@/lib/school/derive";
 import { formatTime, formatWeekdayDate, relative, dayKey } from "@/lib/school/time";
 import { Badge, CourseTag, hueStyle, type Tone } from "./ui";
+import { MarkDoneToggle } from "./mark-done";
 
 const URGENCY: Record<Urgency, { label: string; tone: Tone } | null> = {
   overdue: { label: "Overdue", tone: "danger" },
@@ -19,7 +20,8 @@ const URGENCY: Record<Urgency, { label: string; tone: Tone } | null> = {
 const STATUS_LABEL: Record<Assignment["status"], string> = {
   submitted: "Submitted",
   graded: "Graded",
-  not_submitted: "Not submitted",
+  // Only reachable as "done" when marked by hand.
+  not_submitted: "",
   unknown: "",
 };
 
@@ -61,15 +63,13 @@ export function AssignmentRow({
   const Title = a.url ? "a" : "span";
   return (
     <li className="group flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(a.courseId)}>
-      <span
-        className={clsx(
-          "mt-0.5 size-4 shrink-0 rounded-full border grid place-items-center",
-          done ? "bg-ok border-ok text-white" : u === "overdue" ? "border-danger" : "border-border-strong",
-        )}
-        aria-label={done ? "Completed" : "Not completed"}
-      >
-        {done && <Check className="size-2.5" strokeWidth={3.5} />}
-      </span>
+      {a.status === "submitted" || a.status === "graded" ? (
+        <span className="mt-0.5 size-4 shrink-0 rounded-full border grid place-items-center bg-ok border-ok text-white" aria-label="Completed">
+          <Check className="size-2.5" strokeWidth={3.5} />
+        </span>
+      ) : (
+        <MarkDoneToggle id={a.id} marked={!!a.markedDone} overdue={u === "overdue"} />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <Title
@@ -87,7 +87,7 @@ export function AssignmentRow({
           {KIND_LABEL[a.kind] && <Badge>{KIND_LABEL[a.kind]}</Badge>}
           {badge && <Badge tone={badge.tone}>{badge.label}{a.dueAt && u !== "today" ? ` · ${relative(a.dueAt, now)}` : ""}</Badge>}
           {u === "today" && a.dueAt && <span className="text-[11.5px] text-warn">{relative(a.dueAt, now)}</span>}
-          {done && <Badge tone="ok">{STATUS_LABEL[a.status]}</Badge>}
+          {done && <Badge tone="ok">{STATUS_LABEL[a.status] || "Marked done"}</Badge>}
           {done && a.pointsEarned != null && a.pointsPossible ? (
             <span className="text-[11.5px] text-muted tabular-nums">
               {a.pointsEarned}/{a.pointsPossible}

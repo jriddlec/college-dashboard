@@ -7,6 +7,13 @@ per class.
 
 - **Dashboard:** what's due today, this week, and overdue; a calendar;
   estimated current grades (from your syllabus weights) and GPA; announcements.
+  Tick off items the LMS can't confirm, see your workload per week, count down
+  to exams (linked to their study folders), and work out what you need on the
+  rest of a class. "New" marks what changed since your last visit.
+- **On your phone:** add it to your home screen (it installs like an app), and
+  subscribe to `/api/calendar.ics` for deadlines with reminders in your
+  calendar app. Optional push alerts through ntfy or Discord for new grades,
+  announcements, and when the LMS sign-in needs you.
 - **Library:** browses your class folders on disk, with search, filters, and
   in-browser viewing of PDFs, Markdown, code, images, video, and Office files
   (converted to PDF).
@@ -133,6 +140,12 @@ Everything is optional. Copy the examples in `config/` and edit:
 
 Changes apply without a restart. An invalid file is ignored and reported on the
 **Data status** page.
+
+Alerts and sign-in help come from `.env`: `NOTIFY_URL` (an ntfy topic URL, a
+Discord webhook, or any URL that takes a JSON POST) and `APP_URL` (so alerts
+link back to the dashboard) for the sync containers; `SIGNIN_URL` and
+`SIGNIN_HINT` for the **Sign in** button on Data status when a Brightspace
+session expires.
 
 ## On a home server
 

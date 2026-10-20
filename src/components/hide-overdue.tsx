@@ -2,11 +2,10 @@
 
 import { EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HIDDEN_OVERDUE_COOKIE } from "@/lib/hidden-overdue";
+import { HIDDEN_OVERDUE_COOKIE, encodeIdCookie } from "@/lib/hidden-overdue";
 
 function write(ids: string[]) {
-  const value = encodeURIComponent(JSON.stringify(ids));
-  document.cookie = `${HIDDEN_OVERDUE_COOKIE}=${value}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+  document.cookie = `${HIDDEN_OVERDUE_COOKIE}=${encodeIdCookie(ids)}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
 }
 
 /** Hides one overdue assignment from the Today page. It stays on /assignments?filter=overdue. */

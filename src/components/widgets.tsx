@@ -4,16 +4,29 @@
  * numbers. Current grades, trends and GPA are estimated from each course's
  * own gradebook weights and are labeled as estimates.
  */
-import { ChartLine, GraduationCap, Megaphone, Sigma, TrendingUp } from "lucide-react";
+import { CalendarRange, ChartLine, NotebookPen, GraduationCap, Megaphone, Sigma, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Course, CourseStanding, SchoolSnapshot } from "@/lib/school/types";
-import { courseMap } from "@/lib/school/derive";
+import { courseMap, weeklyLoad } from "@/lib/school/derive";
+import { Workload } from "./workload";
+import { NewBadge } from "./new-badge";
 import { gpaSummary, type Transcript } from "@/lib/school/gpa";
-import { formatShortDate, relative } from "@/lib/school/time";
+import { dayKey, daysBetween, formatShortDate, formatTime, formatWeekdayDate, relative } from "@/lib/school/time";
+import { upcomingExams, type PrepFolder } from "@/lib/school/exams";
+import type { Library } from "@/lib/library";
+import Link from "next/link";
 import { CourseTag, hueStyle } from "./ui";
 
 interface Context {
   transcript: Transcript | null;
+  library: Library | null;
+}
+
+function examsOf(s: SchoolSnapshot, now: Date, lib: Library | null) {
+  const courses = lib?.ok ? lib.courses : [];
+  const prep: PrepFolder[] = courses.flatMap((c) => c.exams.map((g) => ({ courseId: c.course.id, slug: c.course.slug, groupId: g.id, title: g.title })));
+  const slugOf = (id: string) => courses.find((c) => c.course.id === id)?.course.slug ?? null;
+  return upcomingExams(s, prep, slugOf, now);
 }
 
 interface Widget {
@@ -54,6 +67,50 @@ function Sparkline({ points, courseId }: { points: number[]; courseId: string })
 }
 
 const WIDGETS: Widget[] = [
+  {
+    id: "exams",
+    title: "Upcoming exams",
+    icon: NotebookPen,
+    pending: "Appears when an exam is on the calendar in the next 60 days.",
+    available: (s, now, ctx) => examsOf(s, now, ctx.library).length > 0,
+    render: (s, now, courses, ctx) => (
+      <ul className="divide-y divide-border">
+        {examsOf(s, now, ctx.library)
+          .slice(0, 5)
+          .map((x) => {
+            const days = daysBetween(dayKey(now), dayKey(x.at));
+            return (
+              <li key={x.key} className="flex items-start gap-3 px-4 py-2.5 course-bar" style={hueStyle(x.courseId)}>
+                <div className={`w-10 shrink-0 text-center leading-none ${days <= 3 ? "text-danger" : days <= 7 ? "text-warn" : "text-muted"}`}>
+                  <div className="text-[18px] font-semibold tabular-nums">{days === 0 ? "!" : days}</div>
+                  <div className="text-[10px] uppercase tracking-wide mt-0.5">{days === 0 ? "today" : days === 1 ? "day" : "days"}</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium leading-snug">{x.title.replace(/ \(syllabus\)$/, "")}</div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                    <CourseTag course={x.courseId ? courses.get(x.courseId) : undefined} />
+                    <span className="text-[11.5px] text-subtle" title={relative(x.at, now)}>{formatWeekdayDate(x.at)}, {formatTime(x.at)}</span>
+                    {x.prep && (
+                      <Link href={x.prep.href} className="text-[11.5px] font-medium text-accent hover:underline underline-offset-2">
+                        {x.prep.matched ? `Study: ${x.prep.label}` : "Study material"} →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+      </ul>
+    ),
+  },
+  {
+    id: "workload",
+    title: "Workload",
+    icon: CalendarRange,
+    pending: "Appears when assignments have due dates.",
+    available: (s, now) => weeklyLoad(s.assignments, now).some((w) => w.total > 0),
+    render: (s, now, courses) => <Workload weeks={weeklyLoad(s.assignments, now)} courses={courses} />,
+  },
   {
     id: "current-grades",
     title: "Current grades",
@@ -112,6 +169,7 @@ const WIDGETS: Widget[] = [
               <div className="flex items-center gap-2 mt-0.5">
                 <CourseTag course={courses.get(g.courseId)} />
                 <span className="text-[11.5px] text-subtle">{relative(g.postedAt!, now)}</span>
+                <NewBadge at={g.postedAt} />
               </div>
             </li>
           ))}
@@ -140,7 +198,10 @@ const WIDGETS: Widget[] = [
                 {relative(n.postedAt, now)}
               </span>
             </div>
-            <CourseTag course={courses.get(n.courseId)} />
+            <div className="flex items-center gap-2">
+              <CourseTag course={courses.get(n.courseId)} />
+              <NewBadge at={n.postedAt} />
+            </div>
             {n.body && <p className="text-[12.5px] text-muted mt-1 line-clamp-2">{n.body}</p>}
           </li>
         ))}
@@ -221,9 +282,9 @@ const WIDGETS: Widget[] = [
   },
 ];
 
-export function OverviewWidgets({ snapshot, now, transcript }: { snapshot: SchoolSnapshot; now: Date; transcript: Transcript | null }) {
+export function OverviewWidgets({ snapshot, now, transcript, library }: { snapshot: SchoolSnapshot; now: Date; transcript: Transcript | null; library: Library | null }) {
   const courses = courseMap(snapshot.courses);
-  const ctx: Context = { transcript };
+  const ctx: Context = { transcript, library };
   const ready = WIDGETS.filter((w) => w.available(snapshot, now, ctx));
   const pending = WIDGETS.filter((w) => !w.available(snapshot, now, ctx));
   return (
