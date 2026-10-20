@@ -6,10 +6,13 @@
 import type { Assignment, AssignmentKind, SchoolSnapshot } from "./types";
 import type { Gradebook, GradebookItem } from "./standing";
 
-type Row = [title: string, type: string, due: string, earned: number | null, possible: number, recorded?: string];
+type Row = [title: string, type: string, due: string, earned: number | null, possible: number, recorded?: string | null, dep?: number | null];
+
+/** WebAssign's page for one assignment (its `dep` id, from the assignment's URL); needs a WebAssign session. */
+export const webAssignAssignmentUrl = (dep: number) => `https://www.webassign.net/web/Student/Assignment-Responses/last?dep=${dep}`;
 
 /** When a score counts as entered: the earlier of its due date and the day it was recorded in the config. */
-function scoredAt(due: string, recorded: string | undefined): string {
+function scoredAt(due: string, recorded: string | null | undefined): string {
   if (!recorded) return due;
   const r = new Date(`${recorded}T12:00:00-04:00`).toISOString();
   return Date.parse(r) < Date.parse(due) ? r : due;
@@ -24,7 +27,7 @@ const KINDS: Record<string, AssignmentKind> = { Homework: "assignment", "Pre-Cla
 
 export function webAssignFor(courseId: string, cfg: WebAssignCourse): Assignment[] {
   const bonus = cfg.earlyBonus;
-  return cfg.assignments.map(([title, type, due, earned, possible]) => {
+  return cfg.assignments.map(([title, type, due, earned, possible, , dep]) => {
     const hasBonus = !!bonus && bonus.types.includes(type);
     return {
       id: `wa-${courseId}-${title}`,
@@ -35,7 +38,7 @@ export function webAssignFor(courseId: string, cfg: WebAssignCourse): Assignment
       status: earned === null ? "not_submitted" : "graded",
       pointsPossible: possible,
       pointsEarned: earned,
-      url: cfg.url,
+      url: dep ? webAssignAssignmentUrl(dep) : cfg.url,
       earlyBonusAt: hasBonus ? new Date(Date.parse(due) - bonus.hours * 36e5).toISOString() : null,
       earlyBonusPercent: hasBonus ? bonus.percent : null,
     };

@@ -1,12 +1,12 @@
 {
-  "_comment": "Optional. Copy to webassign.json. WebAssign assignments (which the LMS doesn't list), copied by hand, keyed by course code. Rows are [title, type (Homework|Pre-Class|Quiz), due (ISO 8601 with offset), earned or null, possible, recorded (YYYY-MM-DD the score was entered; optional)]. `earlyBonus`: finishing `hours` before the due time earns `percent` extra on the listed types.",
+  "_comment": "Optional. Copy to webassign.json. WebAssign assignments (which the LMS doesn't list), copied by hand, keyed by course code. Rows are [title, type (Homework|Pre-Class|Quiz), due (ISO 8601 with offset), earned or null, possible, recorded (YYYY-MM-DD the score was entered; optional, or null), dep (optional: the number after `dep=` in the assignment's WebAssign address, to link straight to it)]. `url` is where other rows link: your LMS's WebAssign link signs you in, a plain WebAssign page may not. `earlyBonus`: finishing `hours` before the due time earns `percent` extra on the listed types.",
   "courses": {
     "MATH 2260": {
       "url": "https://www.webassign.net/web/Student/Home.html",
       "earlyBonus": { "hours": 48, "percent": 5, "types": ["Homework"] },
       "assignments": [
         ["3.1 Integration by Parts", "Homework", "2026-09-10T23:59:00-04:00", 19, 20, "2026-09-09"],
-        ["3.2 Trigonometric Integrals", "Homework", "2026-09-15T23:59:00-04:00", null, 20]
+        ["3.2 Trigonometric Integrals", "Homework", "2026-09-15T23:59:00-04:00", null, 20, null, 40500090]
       ]
     }
   }

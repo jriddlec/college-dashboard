@@ -136,3 +136,19 @@ describe("what-if with drops", () => {
     expect(projectWithDrops(u, 70)).toBeCloseTo((0.9 * 0.5 + 0.7 * 0.5) * 100 + 1, 6);
   });
 });
+
+import { webAssignFor } from "./webassign";
+
+describe("webassign links", () => {
+  it("links rows with a dep straight to the assignment, others to the course url", () => {
+    const [a, b] = webAssignFor("c", {
+      url: "https://lms.example.edu/webassign",
+      assignments: [
+        ["5.4 Comparison Tests", "Homework", "2026-10-20T23:00:00-04:00", null, 10, null, 40500090],
+        ["5.6 Ratio Test", "Homework", "2026-10-21T23:00:00-04:00", null, 10],
+      ],
+    });
+    expect(a.url).toBe("https://www.webassign.net/web/Student/Assignment-Responses/last?dep=40500090");
+    expect(b.url).toBe("https://lms.example.edu/webassign");
+  });
+});
