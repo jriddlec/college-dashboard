@@ -3,7 +3,7 @@
  * Kept free of React and I/O so it is easy to unit test.
  */
 import type { Assignment, CalendarEvent, Course, SchoolSnapshot } from "./types";
-import { dayKey, daysBetween } from "./time";
+import { addDays, dayKey, daysBetween, formatKey, weekday } from "./time";
 
 /** "past" = due date passed but the source can't say whether it was submitted. */
 export type Urgency = "done" | "overdue" | "past" | "today" | "soon" | "week" | "later" | "undated";
@@ -24,26 +24,40 @@ export function urgencyOf(a: Assignment, now: Date): Urgency {
   return "later";
 }
 
-export type GroupKey = "overdue" | "past" | "today" | "tomorrow" | "week" | "later" | "undated";
-export const GROUP_LABELS: Record<GroupKey, string> = {
+/** Fixed buckets; dated weeks beyond next week use `week:YYYY-MM-DD` (that week's Monday). */
+export type GroupKey = "overdue" | "past" | "today" | "tomorrow" | "week" | "next" | `week:${string}` | "undated";
+export const GROUP_LABELS: Record<Exclude<GroupKey, `week:${string}`>, string> = {
   overdue: "Overdue",
   past: "Past due · status unknown",
   today: "Today",
   tomorrow: "Tomorrow",
   week: "This week",
-  later: "Later",
+  next: "Next week",
   undated: "No due date",
 };
 
-/** Buckets a date relative to now. "This week" is a rolling 7 days. */
+export function groupLabel(key: GroupKey): string {
+  return key.startsWith("week:") ? `Week of ${formatKey(key.slice(5), { month: "short", day: "numeric" })}` : GROUP_LABELS[key as keyof typeof GROUP_LABELS];
+}
+
+/** Monday of the calendar week containing `key` (YYYY-MM-DD). */
+function mondayOf(key: string): string {
+  return addDays(key, -((weekday(key) + 6) % 7));
+}
+
+/** Buckets a date relative to now. Weeks run Monday through Sunday. */
 export function groupForDate(iso: string | null, now: Date): GroupKey {
   if (!iso) return "undated";
-  const diff = daysBetween(dayKey(now), dayKey(iso));
+  const today = dayKey(now);
+  const day = dayKey(iso);
+  const diff = daysBetween(today, day);
   if (diff < 0) return "overdue";
   if (diff === 0) return "today";
   if (diff === 1) return "tomorrow";
-  if (diff <= 7) return "week";
-  return "later";
+  const weeks = daysBetween(mondayOf(today), mondayOf(day)) / 7;
+  if (weeks === 0) return "week";
+  if (weeks === 1) return "next";
+  return `week:${mondayOf(day)}`;
 }
 
 export function byDue(a: Assignment, b: Assignment): number {
@@ -53,14 +67,16 @@ export function byDue(a: Assignment, b: Assignment): number {
 }
 
 export function groupAssignments(items: Assignment[], now: Date) {
-  const order: GroupKey[] = ["overdue", "past", "today", "tomorrow", "week", "later", "undated"];
+  const head: GroupKey[] = ["overdue", "past", "today", "tomorrow", "week", "next"];
   const map = new Map<GroupKey, Assignment[]>();
   for (const a of [...items].sort(byDue)) {
     const g = a.dueAt && new Date(a.dueAt) < now ? (urgencyOf(a, now) === "overdue" ? "overdue" : "past") : groupForDate(a.dueAt, now);
     if (!map.has(g)) map.set(g, []);
     map.get(g)!.push(a);
   }
-  return order.filter((k) => map.has(k)).map((k) => ({ key: k, label: GROUP_LABELS[k], items: map.get(k)! }));
+  const weeks = [...map.keys()].filter((k) => k.startsWith("week:")).sort();
+  const order = [...head, ...weeks, "undated" as const];
+  return order.filter((k) => map.has(k)).map((k) => ({ key: k, label: groupLabel(k), items: map.get(k)! }));
 }
 
 /** Keeps the first `limit` items across groups, in order; returns how many were cut. */

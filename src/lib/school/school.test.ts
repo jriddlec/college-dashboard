@@ -26,7 +26,8 @@ describe("derive", () => {
     expect(groupForDate("2026-10-06T03:30:00Z", now)).toBe("today");
     expect(groupForDate("2026-10-06T15:00:00Z", now)).toBe("tomorrow");
     expect(groupForDate("2026-10-11T15:00:00Z", now)).toBe("week");
-    expect(groupForDate("2026-10-20T15:00:00Z", now)).toBe("later");
+    expect(groupForDate("2026-10-12T15:00:00Z", now)).toBe("next");
+    expect(groupForDate("2026-10-20T15:00:00Z", now)).toBe("week:2026-10-19");
     expect(groupForDate("2026-10-04T15:00:00Z", now)).toBe("overdue");
     expect(groupForDate(null, now)).toBe("undated");
   });
