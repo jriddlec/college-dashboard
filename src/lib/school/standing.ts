@@ -183,6 +183,7 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
   for (const [name, w] of seenW) if (w != null && w > 0) sectionWeights[name] = round1(w);
   return {
     courseId,
+    whatIf: whatIfModel(book, syllabus, bonusPoints(raw, syllabus, isGraded)),
     percent: round1(now.percent),
     letter: letterFor(now.percent, syllabus?.scale).letter,
     gradedWeight: Math.round(now.gradedWeight),
@@ -191,5 +192,29 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
     scale: syllabus?.scale ?? DEFAULT_SCALE,
     history: [...byDay.values()],
     sectionWeights,
+  };
+}
+
+/** Category scores for projecting with future drops (see GradeCalculator). Null unless the syllabus drops lowest scores. */
+function whatIfModel(book: Gradebook, syllabus: Syllabus | undefined, bonus: number): CourseStanding["whatIf"] {
+  const cats = syllabus?.categories;
+  if (!cats?.length || !cats.some((c) => (c.dropLowest ?? 0) > 0)) return null;
+  return {
+    bonus,
+    categories: cats.map((c, n) => {
+      const items = book.items.filter((i) => i.categoryId === `syllabus:${n}`);
+      const scored = items.filter(isGraded);
+      const w = (i: GradebookItem) => i.weight ?? i.possible ?? 1;
+      const wAll = items.reduce((s, i) => s + w(i), 0);
+      const wScored = scored.reduce((s, i) => s + w(i), 0);
+      return {
+        name: c.name,
+        weight: c.weight,
+        dropLowest: c.dropLowest ?? 0,
+        count: c.count ?? null,
+        scores: scored.map(frac),
+        gradedShare: wAll ? wScored / wAll : 0,
+      };
+    }),
   };
 }

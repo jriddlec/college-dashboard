@@ -282,13 +282,33 @@ const WIDGETS: Widget[] = [
   },
 ];
 
-export function OverviewWidgets({ snapshot, now, transcript, library }: { snapshot: SchoolSnapshot; now: Date; transcript: Transcript | null; library: Library | null }) {
+/** Short, glanceable widgets for the side column; the rest go in a full-width grid below. */
+export const SIDE_WIDGETS = ["exams", "workload", "current-grades"];
+
+export function OverviewWidgets({
+  snapshot,
+  now,
+  transcript,
+  library,
+  only,
+  className = "space-y-6",
+}: {
+  snapshot: SchoolSnapshot;
+  now: Date;
+  transcript: Transcript | null;
+  library: Library | null;
+  /** Widget ids to show (in WIDGETS order); all when omitted. */
+  only?: string[];
+  className?: string;
+}) {
   const courses = courseMap(snapshot.courses);
   const ctx: Context = { transcript, library };
-  const ready = WIDGETS.filter((w) => w.available(snapshot, now, ctx));
-  const pending = WIDGETS.filter((w) => !w.available(snapshot, now, ctx));
+  const widgets = only ? WIDGETS.filter((w) => only.includes(w.id)) : WIDGETS;
+  const ready = widgets.filter((w) => w.available(snapshot, now, ctx));
+  const pending = widgets.filter((w) => !w.available(snapshot, now, ctx));
+  if (!ready.length && !pending.length) return null;
   return (
-    <div className="space-y-6">
+    <div className={className}>
       {ready.map((w) => (
         <section key={w.id}>
           <h2 className="text-[13px] font-semibold text-muted uppercase tracking-[0.04em] mb-2.5 px-0.5">{w.title}</h2>

@@ -101,6 +101,28 @@ export const CourseStandingSchema = z.object({
   basis: z.enum(["syllabus", "gradebook"]),
   /** Syllabus the letter scale came from, or null for the default scale. */
   scaleSource: z.string().nullable(),
+  /**
+   * Per-category data for the calculator's "apply drops" mode (syllabus
+   * categories only, when any drops lowest). Scores are 0–1 fractions.
+   */
+  whatIf: z
+    .object({
+      bonus: z.number(),
+      categories: z.array(
+        z.object({
+          name: z.string(),
+          weight: z.number(),
+          dropLowest: z.number(),
+          /** Items that count at term end (after drops); null when the syllabus doesn't say. */
+          count: z.number().nullable(),
+          scores: z.array(z.number()),
+          /** Share of the category already graded, used when `count` is unknown. */
+          gradedShare: z.number(),
+        }),
+      ),
+    })
+    .nullable()
+    .optional(),
   /** Letter scale the estimate uses (letter → minimum percent). */
   scale: z.record(z.string(), z.number()).optional(),
   /** Percent of the final grade per gradebook category name (only when the whole category maps to one weight). */

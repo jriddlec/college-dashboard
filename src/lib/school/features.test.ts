@@ -106,3 +106,33 @@ describe("exams", () => {
     expect(y.prep).toEqual({ href: "/library/math2260", label: "Library", matched: false });
   });
 });
+
+import { neededWithDrops, projectWithDrops, type WhatIf } from "./whatif";
+
+describe("what-if with drops", () => {
+  // Tests: 4 given, best 3 count (74 and 55 so far); a final worth 50, not taken yet.
+  const m: WhatIf = {
+    bonus: 0,
+    categories: [
+      { name: "Tests", weight: 50, dropLowest: 1, count: 3, scores: [0.74, 0.55], gradedShare: 1 },
+      { name: "Final", weight: 50, dropLowest: 0, count: 1, scores: [], gradedShare: 0 },
+    ],
+  };
+  it("drops the lowest test once the remaining ones beat it", () => {
+    // 90 on the rest: tests keep 90, 90, 74 → 84.67; final 90.
+    expect(projectWithDrops(m, 90)).toBeCloseTo((50 * ((0.9 + 0.9 + 0.74) / 3) + 50 * 0.9) / 100 * 100, 6);
+    // 40 on the rest: tests keep 74, 55, 40.
+    expect(projectWithDrops(m, 40)).toBeCloseTo((50 * ((0.74 + 0.55 + 0.4) / 3) + 50 * 0.4), 6);
+  });
+  it("solves for the needed average", () => {
+    const n = neededWithDrops(m, 80);
+    expect(projectWithDrops(m, n)).toBeCloseTo(80, 3);
+    expect(neededWithDrops(m, 0)).toBe(-Infinity);
+    expect(neededWithDrops({ ...m, categories: [{ ...m.categories[0], count: 2, dropLowest: 0 }] }, 90)).toBe(Infinity);
+  });
+  it("blends uncounted categories by graded share", () => {
+    const u: WhatIf = { bonus: 1, categories: [{ name: "HW", weight: 10, dropLowest: 1, count: null, scores: [0.2, 1, 0.8], gradedShare: 0.5 }] };
+    // Drop 0.2 → 0.9 kept average; half graded.
+    expect(projectWithDrops(u, 70)).toBeCloseTo((0.9 * 0.5 + 0.7 * 0.5) * 100 + 1, 6);
+  });
+});

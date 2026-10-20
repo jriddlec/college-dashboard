@@ -142,7 +142,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
 
           {standing && !total && standing.gradedWeight < 100 && (
             <Section title="What do I need?">
-              <GradeCalculator percent={standing.percent} gradedWeight={standing.gradedWeight} scale={standing.scale ?? DEFAULT_SCALE} />
+              <GradeCalculator percent={standing.percent} gradedWeight={standing.gradedWeight} scale={standing.scale ?? DEFAULT_SCALE} whatIf={standing.whatIf} />
             </Section>
           )}
 

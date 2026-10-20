@@ -11,7 +11,7 @@ import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { CourseCard } from "@/components/course-card";
 import { DataUnavailable, SyncedAt } from "@/components/data-state";
 import { EmptyState, Section, SectionLink, Stat, Badge, CourseTag, hueStyle } from "@/components/ui";
-import { OverviewWidgets } from "@/components/widgets";
+import { OverviewWidgets, SIDE_WIDGETS } from "@/components/widgets";
 import { LinkIcon } from "@/components/link-icon";
 import { HideOverdueButton, ShowHiddenOverdue } from "@/components/hide-overdue";
 import { HIDDEN_OVERDUE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
@@ -194,9 +194,18 @@ export default async function Home() {
             )}
           </Section>
 
-          <OverviewWidgets snapshot={snapshot} now={now} transcript={transcript} library={library} />
+          <OverviewWidgets snapshot={snapshot} now={now} transcript={transcript} library={library} only={SIDE_WIDGETS} />
         </aside>
       </div>
+
+      <OverviewWidgets
+        snapshot={snapshot}
+        now={now}
+        transcript={transcript}
+        library={library}
+        only={["recent-grades", "announcements", "grade-trends", "gpa"]}
+        className="mt-10 grid md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-8 items-start"
+      />
 
       <Section title="Classes" className="mt-10" action={<SectionLink href="/courses">All classes</SectionLink>}>
         {activeCourses.length === 0 ? (
