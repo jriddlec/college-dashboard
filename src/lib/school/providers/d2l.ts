@@ -4,7 +4,7 @@
  * Layout under $DATA_DIR/d2l/current/:
  *   manifest.json                 { fetchedAt, failures: string[] }
  *   courses.json due.json overdue.json calendar.json news.json final-grades.json
- *   courses/<courseId>/assignments.json grades.json news.json submissions.json
+ *   courses/<courseId>/assignments.json grades.json quizzes.json news.json submissions.json
  *                       grade-objects.json grade-categories.json grade-setup.json
  *
  * The sync script swaps `current` atomically, so a half-written dump is never read.
@@ -72,6 +72,7 @@ export async function loadD2lSnapshot(dataDir: string, grading: Syllabi = {}, we
       perCourse[id] = {
         assignments: await readJson(path.join(coursesDir, id, "assignments.json")),
         grades: await readJson(path.join(coursesDir, id, "grades.json")),
+        quizzes: await readJson(path.join(coursesDir, id, "quizzes.json")),
         news: await readJson(path.join(coursesDir, id, "news.json")),
         submissions: await readJson(path.join(coursesDir, id, "submissions.json")),
         gradeObjects: await readJson(path.join(coursesDir, id, "grade-objects.json")),

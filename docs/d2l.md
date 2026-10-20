@@ -52,7 +52,7 @@ cat d2l-auth/status.json
 ## What it reads
 
 Courses, due and overdue work, calendar, announcements (per course), final
-grades, and per course: assignments (dropbox folders), grades, gradebook
+grades, and per course: assignments (dropbox folders), quizzes, grades, gradebook
 setup (categories, weights, drops), and your own submissions. Steps that fail
 are listed on the **Data status** page; the rest still sync.
 

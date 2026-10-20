@@ -32,6 +32,8 @@ export interface D2lRaw {
     {
       assignments?: unknown;
       grades?: unknown;
+      /** `d2l quizzes <id>`: every quiz in the course, dated or not. */
+      quizzes?: unknown;
       news?: unknown;
       submissions?: unknown;
       /** Grade item definitions (`/grades/`): category membership, weights, max points. */
@@ -315,6 +317,7 @@ export function normalizeAssignments(raw: D2lRaw, warnings: string[]): Assignmen
   };
   // Per-course lists are the most complete; due/overdue fill gaps (e.g. quizzes).
   for (const [cid, c] of Object.entries(raw.perCourse)) add(c.assignments, cid, null);
+  for (const [cid, c] of Object.entries(raw.perCourse)) add(quizItems(c.quizzes, cid), cid, null);
   add(raw.due, null, "not_submitted");
   add(raw.overdue, null, "not_submitted");
   if (skipped) warnings.push(`Skipped ${skipped} assignment record(s) missing a title or course.`);
@@ -335,6 +338,27 @@ export function normalizeAssignments(raw: D2lRaw, warnings: string[]): Assignmen
     }
   }
   return [...new Set(byId.values())];
+}
+
+/**
+ * Quiz definitions as assignment-shaped records. In-class quizzes often have
+ * no due/end date, only the StartDate they open at, so that stands in as the
+ * date. Inactive and ungraded practice quizzes are dropped.
+ */
+function quizItems(quizzes: unknown, cid: string): unknown[] {
+  return list(quizzes)
+    .filter((q) => pick(q, "IsActive") !== false && !/\b(practice|not for grade)\b/i.test(String(pick(q, "Name") ?? "")))
+    .map((q) => {
+      const qid = str(pick(q, "QuizId"));
+      return {
+        Name: pick(q, "Name"),
+        QuizId: qid,
+        type: "quiz",
+        GradeItemId: pick(q, "GradeItemId"),
+        DueDate: pick(q, "DueDate", "EndDate", "StartDate"),
+        Url: qid ? `${LMS_URL}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${qid}` : null,
+      };
+    });
 }
 
 const STATUS_RANK: Record<Assignment["status"], number> = { unknown: 0, not_submitted: 1, submitted: 2, graded: 3 };

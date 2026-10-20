@@ -112,6 +112,8 @@ def collect(runner: Runner, root: Path, days: int) -> bool:
     for cid in ids:
         folders = runner.json(f"assignments {cid}", root / "courses" / cid / "assignments.json", "assignments", cid)
         runner.json(f"grades {cid}", root / "courses" / cid / "grades.json", "grades", cid)
+        # Quizzes not linked to a tracked content topic never show up in `due`.
+        runner.json(f"quizzes {cid}", root / "courses" / cid / "quizzes.json", "quizzes", cid)
         # The global news feed can come back empty while per-course news has items.
         runner.json(f"news {cid}", root / "courses" / cid / "news.json", "news", cid)
         if client is not None and isinstance(folders, list):

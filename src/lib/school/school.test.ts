@@ -121,6 +121,29 @@ describe("d2l normalizer", () => {
     expect(snap.warnings).toContain("Sync step failed: news");
   });
 
+  it("lists quizzes that only exist in the course's quiz list", () => {
+    const snap = normalizeD2l({
+      fetchedAt: "2026-10-20T00:00:00Z",
+      failures: [],
+      courses: [{ OrgUnit: { Id: 7, Name: "CSCI1301 Intro", Code: "CSCI1301", Type: { Code: "Course Offering" } } }],
+      perCourse: {
+        "7": {
+          quizzes: [
+            { QuizId: 1, Name: "Quiz04 (In-Class Only)", IsActive: true, GradeItemId: 50, StartDate: "2026-10-01T19:30:00.000Z", DueDate: null, EndDate: null },
+            { QuizId: 2, Name: "Quiz05 (In-Class Only)", IsActive: true, GradeItemId: null, StartDate: "2026-10-22T19:30:00.000Z", DueDate: null, EndDate: null },
+            { QuizId: 3, Name: "Practice Quiz04 (Multiple Attempts; Not for Grade)", IsActive: true, StartDate: "2026-10-02T09:00:00.000Z" },
+            { QuizId: 4, Name: "Hidden quiz", IsActive: false, DueDate: "2026-10-30T00:00:00.000Z" },
+          ],
+          grades: [{ GradeObjectIdentifier: "50", GradeObjectName: "Quiz04", PointsNumerator: 9, PointsDenominator: 10 }],
+        },
+      },
+    });
+    const byTitle = Object.fromEntries(snap.assignments.map((a) => [a.title, a]));
+    expect(Object.keys(byTitle).sort()).toEqual(["Quiz04 (In-Class Only)", "Quiz05 (In-Class Only)"]);
+    expect(byTitle["Quiz05 (In-Class Only)"]).toMatchObject({ kind: "quiz", dueAt: "2026-10-22T19:30:00.000Z", status: "unknown" });
+    expect(byTitle["Quiz04 (In-Class Only)"]).toMatchObject({ status: "graded", pointsEarned: 9 });
+  });
+
   it("handles real Brightspace shapes (d2l-cli 0.3.0)", () => {
     const course = (id: number, name: string, code: string) => ({
       OrgUnit: { Id: id, Type: { Id: 3, Code: "Course Offering" }, Name: name, Code: code, HomeUrl: `https://lms.example.edu/d2l/home/${id}` },
