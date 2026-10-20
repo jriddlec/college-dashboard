@@ -52,9 +52,24 @@ export function GradeTable({ items }: { items: Grade[] }) {
     );
   }, [items, filter, sort]);
 
+  /** Per-type average: points earned / possible when every graded item has points, else the mean of percents. */
+  const averages = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const [t] of types) {
+      const graded = items.filter((g) => typeOf(g) === t && g.percent != null);
+      if (!graded.length) continue;
+      const pts = graded.every((g) => g.pointsEarned != null && g.pointsPossible);
+      const avg = pts
+        ? (100 * graded.reduce((s, g) => s + g.pointsEarned!, 0)) / graded.reduce((s, g) => s + g.pointsPossible!, 0)
+        : graded.reduce((s, g) => s + g.percent!, 0) / graded.length;
+      out.set(t, Math.round(avg * 10) / 10);
+    }
+    return out;
+  }, [items, types]);
+
   const chip = (active: boolean) =>
     `rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${active ? "border-border-strong bg-surface-2 text-fg" : "border-border text-muted hover:text-fg"}`;
-  const grouped = sort === "type" && !filter;
+  const grouped = sort === "type";
 
   return (
     <>
@@ -95,9 +110,17 @@ export function GradeTable({ items }: { items: Grade[] }) {
               return [
                 header && (
                   <tr key={`h-${t}`} className="bg-surface-2">
-                    <td colSpan={3} className="px-4 py-1.5 text-[11.5px] font-semibold text-muted uppercase tracking-[0.04em]">
+                    <td className="px-4 py-1.5 text-[11.5px] font-semibold text-muted uppercase tracking-[0.04em]">
                       {t}
                     </td>
+                    <td className="px-4 py-1.5 text-right text-[11.5px] text-muted tabular-nums whitespace-nowrap">
+                      {averages.has(t) && (
+                        <>
+                          Avg <span className="font-semibold text-fg">{averages.get(t)}%</span>
+                        </>
+                      )}
+                    </td>
+                    <td className="hidden sm:table-cell" />
                   </tr>
                 ),
                 <tr key={g.id}>
