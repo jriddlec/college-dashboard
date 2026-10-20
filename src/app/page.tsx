@@ -203,7 +203,7 @@ export default async function Home() {
         now={now}
         transcript={transcript}
         library={library}
-        only={["recent-grades", "announcements", "grade-trends", "gpa"]}
+        only={["announcements", "recent-grades", "grade-trends", "gpa"]}
         className="mt-10 grid md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-8 items-start"
       />
 

@@ -297,13 +297,13 @@ export function OverviewWidgets({
   now: Date;
   transcript: Transcript | null;
   library: Library | null;
-  /** Widget ids to show (in WIDGETS order); all when omitted. */
+  /** Widget ids to show, in this order; all when omitted. */
   only?: string[];
   className?: string;
 }) {
   const courses = courseMap(snapshot.courses);
   const ctx: Context = { transcript, library };
-  const widgets = only ? WIDGETS.filter((w) => only.includes(w.id)) : WIDGETS;
+  const widgets = only ? only.flatMap((id) => WIDGETS.filter((w) => w.id === id)) : WIDGETS;
   const ready = widgets.filter((w) => w.available(snapshot, now, ctx));
   const pending = widgets.filter((w) => !w.available(snapshot, now, ctx));
   if (!ready.length && !pending.length) return null;
