@@ -262,7 +262,7 @@ describe("grade estimates", () => {
 
   it("projects GPA from transcript totals and estimates", () => {
     const t = { gpaHours: 44, qualityPoints: 166, inProgress: [{ code: "BIOL 1107", credits: 4 }, { code: "MATH 2260", credits: 4 }] };
-    const g = gpaSummary(t, [{ courseId: "77", percent: 94, letter: "A", gradedWeight: 28, basis: "gradebook", scaleSource: null, history: [] }], (id) => (id === "77" ? "BIOL 1107" : null));
+    const g = gpaSummary(t, [{ courseId: "77", percent: 94, letter: "A", gradedWeight: 28, basis: "gradebook", scaleSource: null, sectionWeights: {}, history: [] }], (id) => (id === "77" ? "BIOL 1107" : null));
     expect(g.cumulative).toBeCloseTo(3.773, 3);
     expect(g.term).toBe(4);
     expect(g.projected).toBeCloseTo(182 / 48, 5);

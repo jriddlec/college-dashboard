@@ -143,7 +143,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
                 <EmptyState icon={GraduationCap} title="No released grades">Grades appear here once instructors release them in {LMS_LABEL}.</EmptyState>
               </div>
             ) : (
-              <GradeTable items={items} />
+              <GradeTable items={items} weights={standing?.sectionWeights} />
             )}
           </Section>
         </div>

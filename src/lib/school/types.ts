@@ -99,6 +99,8 @@ export const CourseStandingSchema = z.object({
   basis: z.enum(["syllabus", "gradebook"]),
   /** Syllabus the letter scale came from, or null for the default scale. */
   scaleSource: z.string().nullable(),
+  /** Percent of the final grade per gradebook category name (only when the whole category maps to one weight). */
+  sectionWeights: z.record(z.string(), z.number()).default({}),
   /** Per-day estimate, oldest first; `items` are the scores entered that day (the chart's pins). */
   history: z.array(
     z.object({

@@ -30,7 +30,7 @@ function typeRank(t: string): number {
 type SortKey = "type" | "recent" | "score";
 const time = (g: Grade) => Date.parse(g.postedAt ?? "0") || 0;
 
-export function GradeTable({ items }: { items: Grade[] }) {
+export function GradeTable({ items, weights }: { items: Grade[]; weights?: Record<string, number> }) {
   const [sort, setSort] = useState<SortKey>("type");
   const [filter, setFilter] = useState<string | null>(null);
 
@@ -112,13 +112,10 @@ export function GradeTable({ items }: { items: Grade[] }) {
                   <tr key={`h-${t}`} className="bg-surface-2">
                     <td className="px-4 py-1.5 text-[11.5px] font-semibold text-muted uppercase tracking-[0.04em]">
                       {t}
+                      {weights?.[t] != null && <span className="ml-2 font-normal normal-case tracking-normal text-subtle">{weights[t]}% of grade</span>}
                     </td>
                     <td className="px-4 py-1.5 text-right text-[11.5px] text-muted tabular-nums whitespace-nowrap">
-                      {averages.has(t) && (
-                        <>
-                          Avg <span className="font-semibold text-fg">{averages.get(t)}%</span>
-                        </>
-                      )}
+                      {averages.has(t) && <span className="font-semibold">{averages.get(t)}%</span>}
                     </td>
                     <td className="hidden sm:table-cell" />
                   </tr>

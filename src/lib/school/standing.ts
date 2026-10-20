@@ -169,6 +169,18 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
     const items = [...(byDay.get(day)?.items ?? []), { name: i.name, earned: i.earned, possible: i.possible }];
     if (e) byDay.set(day, { at: i.at, percent: round1(e.percent), items });
   }
+  // Section weight per gradebook category name, when all its items land in one weighted category.
+  const catWeight = new Map(book.categories.map((c) => [c.id, c.weight]));
+  const itemWeight = new Map(book.items.map((i) => [i.id, i.categoryId ? catWeight.get(i.categoryId) : undefined]));
+  const seenW = new Map<string, number | null>();
+  for (const i of raw.items) {
+    if (!i.categoryName || i.excluded) continue;
+    const w = itemWeight.get(i.id) ?? null;
+    const prev = seenW.get(i.categoryName);
+    seenW.set(i.categoryName, prev === undefined || prev === w ? w : null);
+  }
+  const sectionWeights: Record<string, number> = {};
+  for (const [name, w] of seenW) if (w != null && w > 0) sectionWeights[name] = round1(w);
   return {
     courseId,
     percent: round1(now.percent),
@@ -177,5 +189,6 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
     basis: syllabus?.categories?.length ? "syllabus" : "gradebook",
     scaleSource: syllabus?.scale ? syllabus.source : null,
     history: [...byDay.values()],
+    sectionWeights,
   };
 }
