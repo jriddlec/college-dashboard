@@ -51,6 +51,12 @@ export const AssignmentSchema = z.object({
   earlyBonusPercent: z.number().nullable().optional(),
   /** The student marked it done on the dashboard (no LMS signal). */
   markedDone: z.boolean().optional(),
+  /** Where the item comes from when it isn't the LMS itself (a syllabus row, WebAssign kept by hand). */
+  source: z.enum(["syllabus", "webassign"]).optional(),
+  /** Happens in class (an exam, an in-class quiz, a conversation): nothing to submit online. */
+  inPerson: z.boolean().optional(),
+  /** An in-person item whose time has passed: counts as done. */
+  attended: z.boolean().optional(),
 });
 export type Assignment = z.infer<typeof AssignmentSchema>;
 

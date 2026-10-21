@@ -6,26 +6,11 @@
  * whenever this provider is active.
  */
 import type { Assignment, CalendarEvent, Course, Grade, Announcement, SchoolSnapshot } from "../types";
-import { addDays, dayKey, SCHOOL_TZ } from "../time";
+import { addDays, dayKey, zonedIso } from "../time";
 import { courseStanding } from "../standing";
 
 /** Instant for wall-clock `hh:mm` on day `key` in the school timezone. */
-function at(key: string, hhmm: string): string {
-  const [h, m] = hhmm.split(":").map(Number);
-  const guess = Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10), h, m);
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: SCHOOL_TZ,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(new Date(guess));
-  const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
-  const asZoned = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
-  return new Date(guess - (asZoned - guess)).toISOString();
-}
+const at = zonedIso;
 
 const ELC = "https://lms.example.edu/d2l";
 

@@ -91,7 +91,8 @@ export function MaterialRow({ m, context, hue }: { m: Material; context?: string
         </div>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
           {context && <span className="text-[12px] text-muted">{context}</span>}
-          <Badge tone={meta.tone}>{meta.label}</Badge>
+          <Badge tone={meta.tone}>{m.type ?? meta.label}</Badge>
+          {m.variant && <span className="text-[11.5px] text-muted rounded border border-border px-1.5 py-px whitespace-nowrap">{m.variant}</span>}
           {m.upcoming && <Badge tone="warn">Upcoming</Badge>}
           <NewBadge at={m.modifiedAt} />
           <span className="text-[11px] font-mono uppercase text-subtle">{m.primary.ext}</span>

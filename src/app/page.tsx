@@ -1,23 +1,27 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { CalendarCheck, CircleAlert, Coffee, MapPin } from "lucide-react";
+import { CalendarCheck, CircleAlert, Clock, Coffee, MapPin } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
 import { getLinks } from "@/lib/links";
 import { getTranscript } from "@/lib/transcript";
 import { getLibrary } from "@/lib/library";
 import { agenda, byDue, courseMap, groupAssignments, isDone, limitGroups, urgencyOf } from "@/lib/school/derive";
-import { dayKey, formatLongDate, formatTime, hourOfDay } from "@/lib/school/time";
+import { dayKey, daysBetween, formatLongDate, formatTime, formatWeekdayDate, hourOfDay, relative } from "@/lib/school/time";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { CourseCard } from "@/components/course-card";
 import { DataUnavailable, SyncedAt } from "@/components/data-state";
 import { EmptyState, Section, SectionLink, Stat, Badge, CourseTag, hueStyle } from "@/components/ui";
-import { OverviewWidgets, SIDE_WIDGETS } from "@/components/widgets";
+import { ExamCountdown, OverviewWidgets, SIDE_WIDGETS, examsOf } from "@/components/widgets";
+import { folderLinks, type FolderLink } from "@/lib/library/links";
 import { LinkIcon } from "@/components/link-icon";
 import { HideOverdueButton, ShowHiddenOverdue } from "@/components/hide-overdue";
 import { HIDDEN_OVERDUE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import { LMS_LABEL } from "@/lib/settings";
+import { readState } from "@/lib/state";
 
 const UPCOMING_LIMIT = 8;
+/** Overdue items older than this fold into an "older" link instead of leading the page. */
+const RECENT_OVERDUE_DAYS = 14;
 
 export default async function Home() {
   const result = await getSchoolData();
@@ -32,8 +36,17 @@ export default async function Home() {
   const overdue = open.filter((a) => urgencyOf(a, now) === "overdue").sort(byDue);
   // Overdue items the user chose to hide from this page (still listed under /assignments?filter=overdue).
   const hiddenIds = await readHiddenOverdue();
-  const visibleOverdue = overdue.filter((a) => !hiddenIds.includes(a.id));
-  const hiddenOverdue = overdue.length - visibleOverdue.length;
+  const notHidden = overdue.filter((a) => !hiddenIds.includes(a.id));
+  const visibleOverdue = notHidden.filter((a) => now.getTime() - Date.parse(a.dueAt!) <= RECENT_OVERDUE_DAYS * 864e5);
+  const olderOverdue = notHidden.length - visibleOverdue.length;
+  const hiddenOverdue = overdue.length - notHidden.length;
+  const folders: Map<string, FolderLink> = library?.ok ? folderLinks(snapshot.assignments, library.courses) : new Map();
+  // Phone "Next up": the next class meeting, the next open deadline, and the next exam.
+  const nextDue = open.filter((a) => a.dueAt && Date.parse(a.dueAt) > now.getTime()).sort(byDue)[0];
+  const nextClass = snapshot.events
+    .filter((e) => e.kind === "class" && Date.parse(e.endsAt ?? e.startsAt) > now.getTime())
+    .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
+  const nextExam = examsOf(snapshot, now, library)[0];
   // Drop ids that are no longer overdue so the cookie doesn't grow forever.
   const liveHidden = hiddenIds.filter((id) => overdue.some((a) => a.id === id));
   const dueToday = snapshot.assignments.filter((a) => a.dueAt && dayKey(a.dueAt) === today).sort(byDue);
@@ -64,11 +77,62 @@ export default async function Home() {
         <SyncedAt iso={snapshot.generatedAt} now={now} warnings={snapshot.warnings.length} />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <Stat label="Due today" value={dueToday.filter((a) => !isDone(a)).length} href="/assignments" />
-        <Stat label="Next 7 days" value={next7.length} href="/assignments" />
-        <Stat label="Overdue" value={overdue.length} tone="danger" href="/assignments?filter=overdue" />
-        <Stat label="Classes" value={activeCourses.length} href="/courses" />
+      {(nextDue || nextClass || nextExam) && (
+        <section className="md:hidden mb-4" aria-label="Next up">
+          <ul className="card divide-y divide-border overflow-hidden">
+            {nextClass && (
+              <li className="flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(nextClass.courseId)}>
+                <Clock className="size-4 text-muted mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] uppercase tracking-wide text-subtle">{Date.parse(nextClass.startsAt) <= now.getTime() ? "In class now" : "Next class"}</div>
+                  <div className="text-[14px] font-medium leading-snug">{nextClass.title}</div>
+                  <div className="text-[12px] text-muted">
+                    {dayKey(nextClass.startsAt) === today ? formatTime(nextClass.startsAt) : `${formatWeekdayDate(nextClass.startsAt)}, ${formatTime(nextClass.startsAt)}`}
+                    {nextClass.location && ` · ${nextClass.location}`}
+                  </div>
+                </div>
+              </li>
+            )}
+            {nextDue && (
+              <li className="flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(nextDue.courseId)}>
+                <CalendarCheck className="size-4 text-muted mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] uppercase tracking-wide text-subtle">Next due · {relative(nextDue.dueAt!, now)}</div>
+                  <div className="text-[14px] font-medium leading-snug">{nextDue.title}</div>
+                  <CourseTag course={courses.get(nextDue.courseId)} />
+                </div>
+              </li>
+            )}
+            {nextExam && (
+              <li className="flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(nextExam.courseId)}>
+                <ExamCountdown days={daysBetween(today, dayKey(nextExam.at))} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] uppercase tracking-wide text-subtle">Next exam</div>
+                  <div className="text-[14px] font-medium leading-snug">{nextExam.title}</div>
+                  {nextExam.prep && (
+                    <Link href={nextExam.prep.href} className="text-[12px] font-medium text-accent">
+                      {nextExam.prep.matched ? `Study: ${nextExam.prep.label}` : "Study material"} →
+                    </Link>
+                  )}
+                </div>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
+
+      <div className="grid grid-cols-4 gap-2 md:gap-3 mb-8">
+        <Stat compact label="Due today" value={dueToday.filter((a) => !isDone(a)).length} href="/assignments" />
+        <Stat compact label="Next 7 days" shortLabel="7 days" value={next7.length} href="/assignments" />
+        <Stat
+          compact
+          label="Overdue"
+          value={visibleOverdue.length}
+          tone="danger"
+          href="/assignments?filter=overdue"
+          hint={olderOverdue > 0 ? `+${olderOverdue} older` : undefined}
+        />
+        <Stat compact label="Classes" value={activeCourses.length} href="/courses" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-x-8 gap-y-8">
@@ -87,13 +151,16 @@ export default async function Home() {
                     course={courses.get(a.courseId)}
                     now={now}
                     dateStyle="full"
+                    folder={folders.get(a.id)}
                     action={<HideOverdueButton id={a.id} hidden={liveHidden} />}
                   />
                 ))}
               </AssignmentList>
+              {olderOverdue > 0 && <OlderOverdue count={olderOverdue} />}
               {hiddenOverdue > 0 && <ShowHiddenOverdue count={hiddenOverdue} />}
             </Section>
           )}
+          {visibleOverdue.length === 0 && olderOverdue > 0 && <OlderOverdue count={olderOverdue} />}
           {visibleOverdue.length === 0 && hiddenOverdue > 0 && <ShowHiddenOverdue count={hiddenOverdue} />}
 
           <Section title="Today" action={<SectionLink href="/calendar">Calendar</SectionLink>}>
@@ -107,7 +174,13 @@ export default async function Home() {
               <ul className="card divide-y divide-border overflow-hidden">
                 {todayItems.map((item) =>
                   item.type === "assignment" ? (
-                    <AssignmentRow key={item.assignment.id} a={item.assignment} course={courses.get(item.assignment.courseId)} now={now} />
+                    <AssignmentRow
+                      key={item.assignment.id}
+                      a={item.assignment}
+                      course={courses.get(item.assignment.courseId)}
+                      now={now}
+                      folder={folders.get(item.assignment.id)}
+                    />
                   ) : (
                     <li key={item.event.id} className="flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(item.event.courseId)}>
                       <span className="mt-0.5 w-4 shrink-0 text-center text-subtle">
@@ -153,7 +226,14 @@ export default async function Home() {
                     <div className="text-[12.5px] font-medium text-muted mb-1.5 px-0.5">{g.label}</div>
                     <AssignmentList>
                       {g.items.map((a) => (
-                        <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} dateStyle={g.key === "tomorrow" ? "time" : "full"} />
+                        <AssignmentRow
+                          key={a.id}
+                          a={a}
+                          course={courses.get(a.courseId)}
+                          now={now}
+                          dateStyle={g.key === "tomorrow" ? "time" : "full"}
+                          folder={folders.get(a.id)}
+                        />
                       ))}
                     </AssignmentList>
                   </div>
@@ -232,6 +312,17 @@ export default async function Home() {
   );
 }
 
+/** Overdue items older than RECENT_OVERDUE_DAYS, folded into one link. */
+function OlderOverdue({ count }: { count: number }) {
+  return (
+    <Link href="/assignments?filter=overdue" className="block w-full text-center text-[12.5px] text-muted hover:text-fg py-1">
+      {count} older overdue · View →
+    </Link>
+  );
+}
+
+/** Overdue items hidden from Home: in the shared state, or in this browser's cookie. */
 async function readHiddenOverdue(): Promise<string[]> {
-  return parseIdCookie((await cookies()).get(HIDDEN_OVERDUE_COOKIE)?.value);
+  const state = await readState();
+  return [...new Set([...state.hiddenOverdue, ...parseIdCookie((await cookies()).get(HIDDEN_OVERDUE_COOKIE)?.value)])];
 }

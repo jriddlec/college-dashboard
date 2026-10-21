@@ -32,6 +32,7 @@ import clsx from "clsx";
 import type { CSSProperties } from "react";
 import { ThemeToggle } from "./theme-toggle";
 import { SyncDot, SyncLabel, type NavSync } from "./sync-dot";
+import { SearchButton } from "./command-palette";
 
 /** Icon names accepted in courses.json `icon`. */
 const COURSE_ICONS: Record<string, LucideIcon> = {
@@ -95,6 +96,7 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
         </div>
       </Link>
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+        <SearchButton className={clsx(itemClass(false), "w-full mb-1")} />
         {NAV.map(({ href, label, icon: Icon }) => {
           // Library is exact here: its class pages are highlighted below.
           const active = isActive(pathname, href, href === "/library");
@@ -175,6 +177,7 @@ export function MobileHeader({ appName, sync }: Brand) {
         <span className="text-[14px] font-semibold">{appName}</span>
       </Link>
       <div className="flex items-center gap-1">
+        <SearchButton compact className="p-2 text-muted" />
         <Link href="/links" aria-label="Links" className="p-2 text-muted">
           <Link2 className="size-4" />
         </Link>

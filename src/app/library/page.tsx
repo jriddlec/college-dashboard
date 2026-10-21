@@ -2,25 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getLibrary } from "@/lib/library";
-import { KIND_FILTER, flatten, type CourseLibrary, type Group, type Material } from "@/lib/library/catalog";
+import { KIND_FILTER, flatten, itemContexts, type Material } from "@/lib/library/catalog";
 import { LibraryError } from "@/components/library/library-error";
 import { HomeSearch, type SearchEntry } from "@/components/library/home-search";
 import { MaterialRow, shortDate } from "@/components/library/material";
 import { PageHeader, Section, hueVars } from "@/components/ui";
-
-/** Group title for every item, so search results and lists can say where a file lives. */
-function contexts(lib: CourseLibrary): Map<string, string> {
-  const out = new Map<string, string>();
-  const visit = (groups: Group[], prefix: string) => {
-    for (const g of groups) {
-      const label = `${prefix} · ${g.number != null ? `Unit ${g.number}: ` : ""}${g.title}`;
-      for (const m of [...(g.readme ? [g.readme] : []), ...g.items]) out.set(m.id, label);
-      visit(g.children, prefix);
-    }
-  };
-  visit([...lib.exams, ...lib.units, ...lib.classwork, ...lib.documents], lib.course.code);
-  return out;
-}
 
 const STUDY_FIRST = (m: Material) => (KIND_FILTER[m.kind] === "study" ? 0 : KIND_FILTER[m.kind] === "practice" ? 1 : 2);
 
@@ -31,14 +17,18 @@ export default async function LibraryPage() {
   if (!lib.ok) return <LibraryError error={lib.error} />;
 
   const entries: SearchEntry[] = lib.courses.flatMap((c) => {
-    const ctx = contexts(c);
+    const ctx = itemContexts(c);
     return flatten([...c.exams, ...c.units, ...c.classwork, ...c.documents]).map((m) => ({ m, context: ctx.get(m.id) ?? c.course.code, hue: c.course.hue }));
   });
   const latest = entries
     .filter((e) => e.m.date && !e.m.upcoming)
     .sort((a, b) => b.m.date!.localeCompare(a.m.date!) || a.m.title.localeCompare(b.m.title))
     .slice(0, 10);
-  const exams = lib.courses.flatMap((c) => (c.exams[0] ? [{ c, g: c.exams[0] }] : []));
+  // Each class's next exam (folders are ordered upcoming first); finished exams aren't shown here.
+  const exams = lib.courses.flatMap((c) => {
+    const g = c.exams[0];
+    return g && !(g.examDays != null && g.examDays < 0) ? [{ c, g }] : [];
+  });
 
   return (
     <div>

@@ -342,11 +342,20 @@ describe("syllabus items", () => {
     const listed: Assignment = { id: "a", courseId: course.id, title: "Lab08", kind: "assignment", dueAt: null, status: "not_submitted", pointsPossible: null, pointsEarned: null, url: null };
     const snap = { ...base, courses: [course], assignments: [listed] };
     const out = withSyllabusItems(snap, {
-      "TEST 1000": { items: [["Lab08", "assignment", "2026-10-16T17:00:00-04:00", "^Lab0?8$"], ["Final Exam", "exam", "2026-12-08T15:30:00-05:00", "final"]] },
+      "TEST 1000": { items: [["Lab08", "assignment", "2026-10-16T17:00:00-04:00", "^Lab0?8$"], ["Final Exam", "exam", "2026-12-08T15:30:00-05:00", "final", { inPerson: true }]] },
       "NOPE 1": { items: [["X", "other", "2026-10-16T17:00:00-04:00", "x"]] },
     });
-    expect(out.assignments.map((a) => a.title)).toEqual(["Lab08", "Final Exam (syllabus)"]);
-    expect(out.assignments[1].status).toBe("unknown");
+    expect(out.assignments.map((a) => a.title)).toEqual(["Lab08", "Final Exam"]);
+    expect(out.assignments[1]).toMatchObject({ status: "unknown", source: "syllabus", inPerson: true });
     expect(SnapshotSchema.safeParse(out).success).toBe(true);
+  });
+  it("counts in-person items as done once their time passes", async () => {
+    const { withAttendance } = await import("./syllabus");
+    const base = buildFixtureSnapshot();
+    const item: Assignment = { id: "x", courseId: base.courses[0].id, title: "Oral Test", kind: "exam", dueAt: "2026-11-11T14:55:00Z", status: "unknown", pointsPossible: null, pointsEarned: null, url: null, inPerson: true };
+    const before = withAttendance({ ...base, assignments: [item] }, new Date("2026-11-11T14:00:00Z"));
+    const after = withAttendance({ ...base, assignments: [item] }, new Date("2026-11-11T15:00:00Z"));
+    expect(before.assignments[0].attended).toBeUndefined();
+    expect(after.assignments[0].attended).toBe(true);
   });
 });

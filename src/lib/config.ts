@@ -6,6 +6,7 @@
  *   links.json       quick links (bundled defaults otherwise)
  *   grading.json     per-syllabus grade weights and letter scales
  *   syllabus.json    deliverables the LMS doesn't list yet
+ *   schedule.json    class meeting times (shown on Today and the calendar)
  *   webassign.json   WebAssign assignments kept by hand
  *   transcript.json  completed-term GPA totals
  *
@@ -19,6 +20,7 @@ import { z } from "zod";
 import type { Syllabus } from "@/lib/school/standing";
 import type { WebAssignCourse } from "@/lib/school/webassign";
 import type { SyllabusCourse } from "@/lib/school/syllabus";
+import type { ScheduleConfig } from "@/lib/school/schedule";
 
 export function configDir(): string {
   // Runtime data, not source: keep the bundler from tracing it into the build.
@@ -62,6 +64,12 @@ const byCode = <T,>() => z.object({ courses: z.record(z.string(), z.unknown()) }
 export const getGrading = () => readConfig("grading.json", byCode<Syllabus>(), {});
 export const getSyllabusConfig = () => readConfig("syllabus.json", byCode<SyllabusCourse>(), {});
 export const getWebAssignConfig = () => readConfig("webassign.json", byCode<WebAssignCourse>(), {});
+export const getScheduleConfig = () =>
+  readConfig<ScheduleConfig | null>(
+    "schedule.json",
+    z.object({ term: z.object({ start: z.string(), end: z.string(), breaks: z.array(z.tuple([z.string(), z.string()])).optional() }), courses: z.record(z.string(), z.array(z.unknown())) }).transform((v) => v as ScheduleConfig),
+    null,
+  );
 
 const CourseOverrideSchema = z.object({
   /** URL slug for the library tab; defaults to the code ("csci-1301"). */

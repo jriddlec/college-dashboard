@@ -1,0 +1,11 @@
+{
+  "_comment": "Optional. Copy to schedule.json. Weekly class meetings (most LMSs don't publish them), shown on Home's Today list and the calendar. Courses are keyed by course code. days: M T W R F S U (R = Thursday, U = Sunday); times are 24-hour in SCHOOL_TZ. Breaks are inclusive date ranges with no classes.",
+  "term": { "start": "2026-08-17", "end": "2026-12-01", "breaks": [["2026-09-07", "2026-09-07"], ["2026-11-25", "2026-11-27"]] },
+  "courses": {
+    "CSCI 2720": [
+      { "days": "MWF", "start": "10:20", "end": "11:10", "location": "Boyd 208", "label": "Lecture" },
+      { "days": "R", "start": "14:20", "end": "16:15", "location": "Boyd 307", "label": "Lab" }
+    ],
+    "MATH 2260": [{ "days": "TR", "start": "11:35", "end": "12:55", "location": "Boyd 203", "label": "Lecture" }]
+  }
+}

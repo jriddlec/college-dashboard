@@ -5,14 +5,19 @@ import { ArrowUpRight, CalendarCheck, CircleCheck, GraduationCap, Megaphone, Not
 import { getSchoolData } from "@/lib/school";
 import { getLinks } from "@/lib/links";
 import { LMS_LABEL, lmsCourseLinks, lmsCourseUrl } from "@/lib/settings";
-import { getLibraryCourses } from "@/lib/library";
+import { getLibrary } from "@/lib/library";
+import { folderLinks, type FolderLink } from "@/lib/library/links";
+import { flatten } from "@/lib/library/catalog";
+import { readState } from "@/lib/state";
+import { MaterialRow } from "@/components/library/material";
+import { AnnouncementList } from "@/components/announcements";
+import { ExamCountdown } from "@/components/widgets";
 import { byDue, groupAssignments, isDone, urgencyOf } from "@/lib/school/derive";
-import { formatShortDate, relative } from "@/lib/school/time";
+import { formatShortDate } from "@/lib/school/time";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { GradeTable } from "@/components/grade-table";
 import { GradeTrend } from "@/components/grade-trend";
 import { GradeCalculator } from "@/components/grade-calculator";
-import { NewBadge } from "@/components/new-badge";
 import { DEFAULT_SCALE } from "@/lib/school/gpa";
 import { DataUnavailable } from "@/components/data-state";
 import { EmptyState, Section, Stat, hueStyle } from "@/components/ui";
@@ -48,8 +53,15 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
 
   const resources = lmsCourseLinks(id).map((r, i) => (i === 0 && course.url ? { ...r, url: course.url } : r));
   const custom = links.courseLinks[id] ?? (course.code ? links.courseLinks[course.code] : undefined) ?? [];
-  const libraryCourse = (await getLibraryCourses()).find((c) => c.id === id);
-  const studyUrl = libraryCourse ? `/library/${libraryCourse.slug}` : null;
+  const library = await getLibrary().catch(() => null);
+  const lib = library?.ok ? library.courses.find((c) => c.course.id === id) : undefined;
+  const studyUrl = lib ? `/library/${lib.course.slug}` : null;
+  const folders: Map<string, FolderLink> = lib ? folderLinks(assignments, [lib]) : new Map();
+  // Inline study material: the next exam's prep folder and the current unit's newest items.
+  const nextExam = lib?.exams.find((g) => g.examDays != null && g.examDays >= 0);
+  const unit = lib?.units.find((u) => u.id === lib.currentUnitId);
+  const unitItems = unit ? flatten([unit]).filter((m) => !m.upcoming).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "")).slice(0, 4) : [];
+  const read = (await readState()).readAnnouncements;
 
   return (
     <div style={hueStyle(course.id)}>
@@ -108,7 +120,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
                     <div className="text-[12.5px] font-medium text-muted mb-1.5 px-0.5">{g.label}</div>
                     <AssignmentList>
                       {g.items.map((a) => (
-                        <AssignmentRow key={a.id} a={a} course={course} now={now} showCourse={false} dateStyle="full" />
+                        <AssignmentRow key={a.id} a={a} course={course} now={now} showCourse={false} dateStyle="full" folder={folders.get(a.id)} />
                       ))}
                     </AssignmentList>
                   </div>
@@ -125,7 +137,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
               </summary>
               <AssignmentList>
                 {completed.map((a) => (
-                  <AssignmentRow key={a.id} a={a} course={course} now={now} showCourse={false} dateStyle="full" />
+                  <AssignmentRow key={a.id} a={a} course={course} now={now} showCourse={false} dateStyle="full" folder={folders.get(a.id)} />
                 ))}
               </AssignmentList>
             </details>
@@ -171,46 +183,64 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
             </ul>
           </Section>
 
-          <Section title="Study material">
-            <div className="card p-4">
-              <div className="flex items-start gap-2.5">
-                <NotebookPen className="size-4 text-muted mt-0.5 shrink-0" />
-                <div>
+          <Section title="Study material" action={studyUrl ? <Link href={studyUrl} className="text-[12.5px] text-muted hover:text-fg">Library →</Link> : undefined}>
+            {lib && (nextExam || unitItems.length > 0) ? (
+              <div className="card overflow-hidden divide-y divide-border">
+                {nextExam && (
+                  <Link href={`${studyUrl}?open=${encodeURIComponent(nextExam.id)}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-2/60 transition-colors">
+                    <ExamCountdown days={nextExam.examDays!} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium">{nextExam.title}</span>
+                      <span className="block text-[11.5px] text-muted">{nextExam.total} items · exam prep</span>
+                    </span>
+                  </Link>
+                )}
+                {unit && unitItems.length > 0 && (
+                  <div>
+                    <Link href={`${studyUrl}?open=${encodeURIComponent(unit.id)}`} className="block px-4 pt-2.5 pb-1 text-[11.5px] font-medium text-muted hover:text-fg">
+                      {unit.number != null ? `Unit ${unit.number}: ` : ""}
+                      {unit.title} →
+                    </Link>
+                    <ul className="divide-y divide-border">
+                      {unitItems.map((m) => (
+                        <MaterialRow key={m.id} m={m} />
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="card p-4">
+                <div className="flex items-start gap-2.5">
+                  <NotebookPen className="size-4 text-muted mt-0.5 shrink-0" />
                   {studyUrl ? (
-                    <>
-                      <p className="text-[13px]">Study guides, notes and class material for this class are in the library.</p>
-                      <Link href={studyUrl} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent mt-1.5 hover:underline underline-offset-2">
-                        Open in Library →
+                    <p className="text-[13px]">
+                      Study guides, notes and class material are in the{" "}
+                      <Link href={studyUrl} className="font-medium text-accent hover:underline underline-offset-2">
+                        library
                       </Link>
-                    </>
+                      .
+                    </p>
                   ) : (
                     <p className="text-[13px] text-muted">This class has no folder in the library.</p>
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </Section>
 
           <Section title="Announcements" count={news.length || undefined}>
-            {news.length === 0 ? (
-              <div className="card">
-                <EmptyState icon={Megaphone} title="No announcements" className="py-8" />
-              </div>
-            ) : (
-              <ul className="card divide-y divide-border overflow-hidden">
-                {news.slice(0, 6).map((n) => (
-                  <li key={n.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-[13px] font-medium leading-snug">
-                        {n.title} <NewBadge at={n.postedAt} className="ml-1 align-middle" />
-                      </span>
-                      <span className="text-[11.5px] text-subtle whitespace-nowrap">{relative(n.postedAt, now)}</span>
-                    </div>
-                    {n.body && <p className="text-[12.5px] text-muted mt-1 line-clamp-3 whitespace-pre-line">{n.body}</p>}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div id="announcements" className="scroll-mt-16">
+              {news.length === 0 ? (
+                <div className="card">
+                  <EmptyState icon={Megaphone} title="No announcements" className="py-8" />
+                </div>
+              ) : (
+                <div className="card overflow-hidden">
+                  <AnnouncementList items={news.slice(0, 8)} courses={{ [course.id]: course }} read={read} now={now.toISOString()} showCourse={false} lines={3} />
+                </div>
+              )}
+            </div>
           </Section>
 
           {(standing || total) && (

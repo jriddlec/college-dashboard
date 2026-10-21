@@ -52,6 +52,54 @@ The unit with the most recent dated material opens by default.
 
 ## File names
 
+### Recommended naming
+
+Names in this pattern are read exactly:
+
+```
+YYYY-MM-DD <Type> - <Topic>[ (<variant>)].<ext>     units, exam prep, classwork
+<Type>[ - <Title>][ (<variant>)].<ext>              Important Documents, Reference
+
+2026-09-24 Study Guide - 3.7 Improper Integrals.html
+2026-08-20 Lecture Notes - 1.1-1.3 Areas (annotated).pdf
+2026-09-14 Submission - Lab 4.pdf
+Rubric - Defense Summary (old).docx
+```
+
+The **Type** sets the kind and is shown as the badge, the **Topic** is the
+title, and the **variant** (`annotated`, `clean`, `v2`, `official`, a
+classmate's name...) is shown as a chip. Types:
+
+| Type | Kind |
+|---|---|
+| Lecture Notes, Lesson Notes, any "<Series> Notes" (e.g. "OSE Notes") | Notes |
+| Slides | Slides |
+| Reading, Textbook | Reading |
+| Pre-Class | Pre-class |
+| Activity, Worksheet | Activity |
+| Recording | Audio or video (a transcript with the same name shows as its other format) |
+| Study Guide, Master Study Guide | Study guide |
+| Practice Problems, Practice Test, Practice Quiz, Exam Paper | Practice |
+| Review | Review |
+| Instructions | Assignment |
+| Draft, Submission, Graded | My work |
+| Rubric, Template, Guidelines | Guidelines |
+| Syllabus, Schedule, Info, Setup | Course info |
+
+Folders under Classwork go two levels deep, a category and an item
+(`Labs/Lab 3`, `Defense Summaries/Defense Summary 2`); unnumbered items can be
+named `YYYY-MM-DD <Title>` (`In-Class Activities/2026-09-15 Boolean Activity`)
+and are dated by it. Code and data files keep the names the assignment gives
+them. Set `LIBRARY_NAMING_CHECK=1` to list files that don't follow this on
+**Data status**.
+
+Exam-prep folders (`_Test 3 Material`) are matched to the exam with the same
+name and number on the calendar: the next exam's folder comes first and opens
+by default, past exams go last. Assignments open their classwork folder the
+same way ("Lab04" ↔ `Labs/Lab 4`).
+
+### Any other names
+
 - **Dates:** a `YYYY-MM-DD ` prefix dates the item (`2026-09-29 Study Guide 3.7.html`).
   Future dates are marked "upcoming".
 - **One item, several formats:** files that differ only by extension
@@ -85,6 +133,10 @@ The unit with the most recent dated material opens by default.
 | Anything else | Download |
 
 Every item also has a download link for the original.
+
+**Search** (Ctrl+K anywhere, or the box on the library pages) also looks
+inside HTML, Markdown and text files, including the text of study guides built
+from a template whose content lives in a script.
 
 ### Office previews
 

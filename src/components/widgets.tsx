@@ -1,28 +1,38 @@
 /**
- * Academic-overview widgets. Each declares when it has real data to show;
- * widgets without a source render as "not connected" rather than inventing
- * numbers. Current grades, trends and GPA are estimated from each course's
- * own gradebook weights and are labeled as estimates.
+ * Academic-overview widgets. A widget with nothing to show right now says so
+ * in its card; one that needs a file or setting that's missing is listed
+ * under "Not set up yet" instead of inventing numbers. Current grades, trends
+ * and GPA are estimated from each course's own gradebook weights and are
+ * labeled as estimates.
  */
 import { CalendarRange, ChartLine, NotebookPen, GraduationCap, Megaphone, Sigma, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
+import clsx from "clsx";
 import type { Course, CourseStanding, SchoolSnapshot } from "@/lib/school/types";
 import { courseMap, weeklyLoad } from "@/lib/school/derive";
-import { Workload } from "./workload";
-import { NewBadge } from "./new-badge";
 import { gpaSummary, type Transcript } from "@/lib/school/gpa";
 import { dayKey, daysBetween, formatShortDate, formatTime, formatWeekdayDate, relative } from "@/lib/school/time";
-import { upcomingExams, type PrepFolder } from "@/lib/school/exams";
+import { upcomingExams, type PrepFolder, type UpcomingExam } from "@/lib/school/exams";
+import { SCORE_TEXT, scoreOf } from "@/lib/school/score";
+import { targetLine } from "@/lib/school/targets";
 import type { Library } from "@/lib/library";
-import Link from "next/link";
+import { readState } from "@/lib/state";
+import { Workload } from "./workload";
+import { NewBadge } from "./new-badge";
+import { AnnouncementList } from "./announcements";
 import { CourseTag, hueStyle } from "./ui";
 
 interface Context {
   transcript: Transcript | null;
   library: Library | null;
+  /** Upcoming exams with their prep folders (computed once per render). */
+  exams: UpcomingExam[];
+  /** Announcement ids marked read. */
+  read: string[];
 }
 
-function examsOf(s: SchoolSnapshot, now: Date, lib: Library | null) {
+export function examsOf(s: SchoolSnapshot, now: Date, lib: Library | null): UpcomingExam[] {
   const courses = lib?.ok ? lib.courses : [];
   const prep: PrepFolder[] = courses.flatMap((c) => c.exams.map((g) => ({ courseId: c.course.id, slug: c.course.slug, groupId: g.id, title: g.title })));
   const slugOf = (id: string) => courses.find((c) => c.course.id === id)?.course.slug ?? null;
@@ -33,8 +43,11 @@ interface Widget {
   id: string;
   title: string;
   icon: LucideIcon;
-  /** Why it's not shown yet, when it can't be. */
-  pending: string;
+  /** Shown in the card when there's nothing to show right now. */
+  empty: string;
+  /** False when a file or setting the widget needs is missing; it's then listed under "Not set up yet" with `setup`. */
+  configured?: (ctx: Context) => boolean;
+  setup?: string;
   available: (s: SchoolSnapshot, now: Date, ctx: Context) => boolean;
   render: (s: SchoolSnapshot, now: Date, courses: Map<string, Course>, ctx: Context) => React.ReactNode;
 }
@@ -66,40 +79,53 @@ function Sparkline({ points, courseId }: { points: number[]; courseId: string })
   );
 }
 
+/** Countdown number for an exam: days left, colored by how close it is. */
+export function ExamCountdown({ days }: { days: number }) {
+  return (
+    <div className={clsx("w-10 shrink-0 text-center leading-none", days <= 3 ? "text-danger" : days <= 7 ? "text-warn" : "text-muted")}>
+      <div className="text-[18px] font-semibold tabular-nums">{days === 0 ? "!" : days}</div>
+      <div className="text-[10px] uppercase tracking-wide mt-0.5">{days === 0 ? "today" : days === 1 ? "day" : "days"}</div>
+    </div>
+  );
+}
+
 const WIDGETS: Widget[] = [
   {
     id: "exams",
     title: "Upcoming exams",
     icon: NotebookPen,
-    pending: "Appears when an exam is on the calendar in the next 60 days.",
-    available: (s, now, ctx) => examsOf(s, now, ctx.library).length > 0,
+    empty: "No exams on the calendar in the next 60 days.",
+    available: (_s, _now, ctx) => ctx.exams.length > 0,
     render: (s, now, courses, ctx) => (
       <ul className="divide-y divide-border">
-        {examsOf(s, now, ctx.library)
-          .slice(0, 5)
-          .map((x) => {
-            const days = daysBetween(dayKey(now), dayKey(x.at));
-            return (
-              <li key={x.key} className="flex items-start gap-3 px-4 py-2.5 course-bar" style={hueStyle(x.courseId)}>
-                <div className={`w-10 shrink-0 text-center leading-none ${days <= 3 ? "text-danger" : days <= 7 ? "text-warn" : "text-muted"}`}>
-                  <div className="text-[18px] font-semibold tabular-nums">{days === 0 ? "!" : days}</div>
-                  <div className="text-[10px] uppercase tracking-wide mt-0.5">{days === 0 ? "today" : days === 1 ? "day" : "days"}</div>
+        {ctx.exams.slice(0, 5).map((x) => {
+          const st = x.courseId ? s.standings.find((v) => v.courseId === x.courseId) : undefined;
+          const target = st ? targetLine(st) : null;
+          return (
+            <li key={x.key} className="flex items-start gap-3 px-4 py-2.5 course-bar" style={hueStyle(x.courseId)}>
+              <ExamCountdown days={daysBetween(dayKey(now), dayKey(x.at))} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-medium leading-snug">{x.title}</div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                  <CourseTag course={x.courseId ? courses.get(x.courseId) : undefined} />
+                  <span className="text-[11.5px] text-subtle" title={relative(x.at, now)}>
+                    {formatWeekdayDate(x.at)}, {formatTime(x.at)}
+                  </span>
+                  {x.prep && (
+                    <Link href={x.prep.href} className="text-[11.5px] font-medium text-accent hover:underline underline-offset-2">
+                      {x.prep.matched ? `Study: ${x.prep.label}` : "Study material"} →
+                    </Link>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-medium leading-snug">{x.title.replace(/ \(syllabus\)$/, "")}</div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                    <CourseTag course={x.courseId ? courses.get(x.courseId) : undefined} />
-                    <span className="text-[11.5px] text-subtle" title={relative(x.at, now)}>{formatWeekdayDate(x.at)}, {formatTime(x.at)}</span>
-                    {x.prep && (
-                      <Link href={x.prep.href} className="text-[11.5px] font-medium text-accent hover:underline underline-offset-2">
-                        {x.prep.matched ? `Study: ${x.prep.label}` : "Study material"} →
-                      </Link>
-                    )}
+                {target && (
+                  <div className="text-[11px] text-subtle mt-0.5" title="Average needed on the rest of the class's work (estimate)">
+                    Need on the rest: {target}
                   </div>
-                </div>
-              </li>
-            );
-          })}
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     ),
   },
@@ -107,7 +133,7 @@ const WIDGETS: Widget[] = [
     id: "workload",
     title: "Workload",
     icon: CalendarRange,
-    pending: "Appears when assignments have due dates.",
+    empty: "No open deadlines in the next six weeks.",
     available: (s, now) => weeklyLoad(s.assignments, now).some((w) => w.total > 0),
     render: (s, now, courses) => <Workload weeks={weeklyLoad(s.assignments, now)} courses={courses} />,
   },
@@ -115,7 +141,7 @@ const WIDGETS: Widget[] = [
     id: "current-grades",
     title: "Current grades",
     icon: GraduationCap,
-    pending: "Appears once a class has graded work in its LMS gradebook.",
+    empty: "No graded work yet.",
     available: (s) => classStandings(s).length > 0 || s.grades.some((g) => g.isCourseTotal),
     render: (s, _now, courses) => {
       const finals = new Map(s.grades.filter((g) => g.isCourseTotal).map((g) => [g.courseId, g]));
@@ -131,9 +157,7 @@ const WIDGETS: Widget[] = [
               <li key={id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <div className="min-w-0" title={st ? `Estimated from ${st.basis === "syllabus" ? "syllabus" : "gradebook"} weights over graded work; letter on ${st.scaleSource ?? "a default"} scale.` : undefined}>
                   <CourseTag course={courses.get(id)} />
-                  <div className="text-[11px] text-subtle mt-0.5">
-                    {fin ? "Released" : `Est. · ${st!.gradedWeight}% graded`}
-                  </div>
+                  <div className="text-[11px] text-subtle mt-0.5">{fin ? "Released" : `Est. · ${st!.gradedWeight}% graded`}</div>
                 </div>
                 <span className="text-[13px] tabular-nums whitespace-nowrap">
                   {letter && <span className="font-medium">{fin ? letter : `~${letter}`}</span>}
@@ -150,7 +174,7 @@ const WIDGETS: Widget[] = [
     id: "recent-grades",
     title: "Recently graded",
     icon: TrendingUp,
-    pending: "Appears when graded items include a release date.",
+    empty: `Nothing graded in the last ${RECENT_DAYS} days.`,
     available: (s, now) => s.grades.some((g) => !g.isCourseTotal && g.postedAt && now.getTime() - Date.parse(g.postedAt) < RECENT_DAYS * 864e5),
     render: (s, now, courses) => (
       <ul className="divide-y divide-border">
@@ -158,21 +182,24 @@ const WIDGETS: Widget[] = [
           .filter((g) => !g.isCourseTotal && g.postedAt && now.getTime() - Date.parse(g.postedAt) < RECENT_DAYS * 864e5)
           .sort((a, b) => Date.parse(b.postedAt!) - Date.parse(a.postedAt!))
           .slice(0, 5)
-          .map((g) => (
-            <li key={g.id} className="px-4 py-2.5">
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-[13px] leading-snug">{g.name}</span>
-                <span className="text-[13px] tabular-nums font-medium whitespace-nowrap">
-                  {g.pointsEarned != null && g.pointsPossible ? `${g.pointsEarned}/${g.pointsPossible}` : (g.display ?? `${g.percent}%`)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <CourseTag course={courses.get(g.courseId)} />
-                <span className="text-[11.5px] text-subtle">{relative(g.postedAt!, now)}</span>
-                <NewBadge at={g.postedAt} />
-              </div>
-            </li>
-          ))}
+          .map((g) => {
+            const sc = scoreOf(g.pointsEarned, g.pointsPossible);
+            return (
+              <li key={g.id} className="px-4 py-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-[13px] leading-snug">{g.name}</span>
+                  <span className={clsx("text-[13px] tabular-nums font-medium whitespace-nowrap", sc && SCORE_TEXT[sc.tone])}>
+                    {sc ? `${sc.points} · ${sc.pct}` : (g.display ?? `${g.percent}%`)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <CourseTag course={courses.get(g.courseId)} />
+                  <span className="text-[11.5px] text-subtle">{relative(g.postedAt!, now)}</span>
+                  <NewBadge at={g.postedAt} />
+                </div>
+              </li>
+            );
+          })}
       </ul>
     ),
   },
@@ -180,39 +207,17 @@ const WIDGETS: Widget[] = [
     id: "announcements",
     title: "Announcements",
     icon: Megaphone,
-    pending: "Appears when courses post announcements.",
+    empty: "No announcements yet.",
     available: (s) => s.announcements.length > 0,
-    render: (s, now, courses) => (
-      <ul className="divide-y divide-border">
-        {s.announcements.slice(0, 4).map((n) => (
-          <li key={n.id} className="px-4 py-2.5">
-            <div className="flex items-start justify-between gap-3">
-              {n.url ? (
-                <a href={n.url} target="_blank" rel="noreferrer" className="text-[13px] font-medium leading-snug hover:underline underline-offset-2">
-                  {n.title}
-                </a>
-              ) : (
-                <span className="text-[13px] font-medium leading-snug">{n.title}</span>
-              )}
-              <span className="text-[11.5px] text-subtle whitespace-nowrap" title={formatShortDate(n.postedAt)}>
-                {relative(n.postedAt, now)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CourseTag course={courses.get(n.courseId)} />
-              <NewBadge at={n.postedAt} />
-            </div>
-            {n.body && <p className="text-[12.5px] text-muted mt-1 line-clamp-2">{n.body}</p>}
-          </li>
-        ))}
-      </ul>
+    render: (s, now, courses, ctx) => (
+      <AnnouncementList items={s.announcements.slice(0, 4)} courses={Object.fromEntries(courses)} read={ctx.read} now={now.toISOString()} />
     ),
   },
   {
     id: "grade-trends",
     title: "Grade trends",
     icon: ChartLine,
-    pending: "Needs graded work on at least two different days in a class.",
+    empty: "Needs graded work on at least two different days in a class.",
     available: (s) => classStandings(s).some((x) => x.history.length >= 2),
     render: (s, now, courses) => (
       <ul className="divide-y divide-border">
@@ -248,7 +253,9 @@ const WIDGETS: Widget[] = [
     id: "gpa",
     title: "GPA",
     icon: Sigma,
-    pending: "Add transcript.json (GPA hours, quality points, in-progress credits) to the dashboard data dir.",
+    empty: "",
+    configured: (ctx) => ctx.transcript !== null,
+    setup: "Add transcript.json (GPA hours, quality points, in-progress credits) to the config folder.",
     available: (_s, _now, ctx) => ctx.transcript !== null,
     render: (s, _now, _courses, ctx) => {
       const codes = new Map(s.courses.map((c) => [c.id, c.code]));
@@ -285,7 +292,7 @@ const WIDGETS: Widget[] = [
 /** Short, glanceable widgets for the side column; the rest go in a full-width grid below. */
 export const SIDE_WIDGETS = ["exams", "workload", "current-grades"];
 
-export function OverviewWidgets({
+export async function OverviewWidgets({
   snapshot,
   now,
   transcript,
@@ -302,29 +309,36 @@ export function OverviewWidgets({
   className?: string;
 }) {
   const courses = courseMap(snapshot.courses);
-  const ctx: Context = { transcript, library };
+  const ctx: Context = { transcript, library, exams: examsOf(snapshot, now, library), read: (await readState()).readAnnouncements };
   const widgets = only ? only.flatMap((id) => WIDGETS.filter((w) => w.id === id)) : WIDGETS;
-  const ready = widgets.filter((w) => w.available(snapshot, now, ctx));
-  const pending = widgets.filter((w) => !w.available(snapshot, now, ctx));
-  if (!ready.length && !pending.length) return null;
+  const setup = widgets.filter((w) => w.configured && !w.configured(ctx));
+  const shown = widgets.filter((w) => !setup.includes(w));
+  if (!shown.length && !setup.length) return null;
   return (
     <div className={className}>
-      {ready.map((w) => (
+      {shown.map((w) => (
         <section key={w.id}>
           <h2 className="text-[13px] font-semibold text-muted uppercase tracking-[0.04em] mb-2.5 px-0.5">{w.title}</h2>
-          <div className="card overflow-hidden">{w.render(snapshot, now, courses, ctx)}</div>
+          {w.available(snapshot, now, ctx) ? (
+            <div className="card overflow-hidden">{w.render(snapshot, now, courses, ctx)}</div>
+          ) : (
+            <div className="card flex items-start gap-2.5 px-4 py-3">
+              <w.icon className="size-3.5 text-subtle mt-0.5 shrink-0" />
+              <p className="text-[12.5px] text-muted">{w.empty}</p>
+            </div>
+          )}
         </section>
       ))}
-      {pending.length > 0 && (
+      {setup.length > 0 && (
         <section>
-          <h2 className="text-[13px] font-semibold text-muted uppercase tracking-[0.04em] mb-2.5 px-0.5">Not connected yet</h2>
+          <h2 className="text-[13px] font-semibold text-muted uppercase tracking-[0.04em] mb-2.5 px-0.5">Not set up yet</h2>
           <ul className="rounded-[10px] border border-dashed border-border divide-y divide-dashed divide-border">
-            {pending.map((w) => (
+            {setup.map((w) => (
               <li key={w.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
                 <w.icon className="size-3.5 text-subtle mt-0.5 shrink-0" />
                 <div>
                   <div className="text-[12.5px] font-medium text-muted">{w.title}</div>
-                  <div className="text-[11.5px] text-subtle">{w.pending}</div>
+                  <div className="text-[11.5px] text-subtle">{w.setup}</div>
                 </div>
               </li>
             ))}

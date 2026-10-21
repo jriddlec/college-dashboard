@@ -15,8 +15,10 @@ import { buildFixtureSnapshot } from "./providers/fixture";
 import { loadD2lSnapshot } from "./providers/d2l";
 import { loadCanvasSnapshot } from "./providers/canvas";
 import { withWebAssign } from "./webassign";
-import { withSyllabusItems } from "./syllabus";
-import { getCourseOverrides, getGrading, getSyllabusConfig, getWebAssignConfig, type CourseOverride } from "@/lib/config";
+import { withAttendance, withSyllabusItems } from "./syllabus";
+import { withSchedule } from "./schedule";
+import { readState } from "@/lib/state";
+import { getCourseOverrides, getGrading, getScheduleConfig, getSyllabusConfig, getWebAssignConfig, type CourseOverride } from "@/lib/config";
 import { LMS, type Lms } from "@/lib/settings";
 import { MARKED_DONE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import type { Course, SnapshotResult } from "./types";
@@ -35,22 +37,39 @@ export function dataDir(): string {
 
 export async function getSchoolData(): Promise<SnapshotResult> {
   await connection(); // always request-time: data and "now" change continuously
-  const [grading, syllabus, webassign, overrides] = await Promise.all([getGrading(), getSyllabusConfig(), getWebAssignConfig(), getCourseOverrides()]);
+  return loadSchoolData(await readMarkedDone());
+}
+
+/**
+ * The merged snapshot (LMS + WebAssign + syllabus rows + course overrides +
+ * marks). `browserMarks` are a browser's cookie marks; marks in the shared
+ * state always apply. Also used outside requests (reminders), where there are
+ * no cookies.
+ */
+export async function loadSchoolData(browserMarks: string[] = [], now = new Date()): Promise<SnapshotResult> {
+  const [grading, syllabus, webassign, overrides, schedule, state] = await Promise.all([
+    getGrading(),
+    getSyllabusConfig(),
+    getWebAssignConfig(),
+    getCourseOverrides(),
+    getScheduleConfig(),
+    readState(),
+  ]);
   const source = dataSource();
   let result: SnapshotResult;
   if (source === "fixture") result = { status: "ok", snapshot: buildFixtureSnapshot() };
   else if (source === "d2l") result = await loadD2lSnapshot(dataDir(), grading.value, webassign.value);
   else result = await loadCanvasSnapshot(dataDir(), grading.value, webassign.value);
   if (result.status !== "ok") return result;
-  const merged = withSyllabusItems(withWebAssign(result.snapshot, webassign.value), syllabus.value);
-  // Items the user ticked off by hand (stored in a cookie: the app never writes to disk).
-  const marked = new Set(await readMarkedDone());
+  const merged = withSchedule(withAttendance(withSyllabusItems(withWebAssign(result.snapshot, webassign.value), syllabus.value), now), schedule.value);
+  // Items ticked off by hand: in the shared state, or in this browser's cookie.
+  const marked = new Set([...state.markedDone, ...browserMarks]);
   const snapshot = {
     ...merged,
     courses: merged.courses.map((c) => withOverride(c, overrides.value)),
     assignments: marked.size ? merged.assignments.map((a) => (marked.has(a.id) ? { ...a, markedDone: true } : a)) : merged.assignments,
   };
-  const configErrors = [grading.error, syllabus.error, webassign.error, overrides.error].filter((e): e is string => !!e);
+  const configErrors = [grading.error, syllabus.error, webassign.error, overrides.error, schedule.error].filter((e): e is string => !!e);
   return { status: "ok", snapshot: configErrors.length ? { ...snapshot, warnings: [...configErrors, ...snapshot.warnings] } : snapshot };
 }
 

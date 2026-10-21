@@ -5,20 +5,30 @@ calendar, grades and announcements from your school's LMS, plus a **library**
 of your own study material (notes, study guides, slides, classwork) organized
 per class.
 
-- **Dashboard:** what's due today, this week, and overdue; a calendar;
-  estimated current grades (from your syllabus weights) and GPA; announcements.
-  Tick off items the LMS can't confirm, see your workload per week, count down
-  to exams (linked to their study folders), and work out what you need on the
-  rest of a class. "New" marks what changed since your last visit.
-- **On your phone:** add it to your home screen (it installs like an app), and
-  subscribe to `/api/calendar.ics` for deadlines with reminders in your
-  calendar app. Optional push alerts through ntfy or Discord for new grades,
-  announcements, and when the LMS sign-in needs you.
+- **Dashboard:** what's due today, this week, and overdue; your class meetings
+  (from `schedule.json`); a calendar; estimated current grades (from your
+  syllabus weights) and GPA; announcements you can expand and mark read.
+  Tick off items the LMS can't confirm (shared by your devices), see your
+  workload per week, count down to exams (linked to their study folders, with
+  the average you need on the rest of the class), and open each assignment's
+  folder in the library. Scores are colored, and "New" marks what changed
+  since your last visit.
+- **Search everything:** Ctrl+K (or /) searches classes, assignments,
+  announcements and the library, including the text inside your study guides
+  and notes.
+- **On your phone:** a "Next up" card (next class, next deadline, next exam);
+  add it to your home screen (it installs like an app), and subscribe to
+  `/api/calendar.ics` for deadlines with reminders in your calendar app.
+  Optional push alerts through ntfy or Discord: deadlines due within a day,
+  exams in two days, new grades, announcements, and when the LMS sign-in
+  needs you.
 - **Library:** browses your class folders on disk, with search, filters, and
   in-browser viewing of PDFs, Markdown, code, images, video, and Office files
-  (converted to PDF).
+  (converted to PDF). Files named `YYYY-MM-DD <Type> - <Topic>` are sorted
+  exactly; anything else still works.
 - **Read-only:** it never submits, posts, or changes anything in your LMS, and
-  never writes to your folders.
+  never writes to your folders. Its only writable folder is `STATE_DIR`, for
+  marks shared by your devices and reminders already sent.
 - **LMS support:** Brightspace / D2L (tested), Canvas (new; built from the API
   docs, not yet tested against a live school).
 
@@ -51,7 +61,7 @@ on localhost, your LAN, or a VPN like Tailscale. Never expose it to the internet
 git clone https://github.com/jriddlec/college-dashboard
 cd college-dashboard
 cp .env.example .env
-mkdir -p data previews d2l-auth
+mkdir -p data previews d2l-auth state
 docker compose up -d --build
 ```
 
@@ -134,7 +144,8 @@ Everything is optional. Copy the examples in `config/` and edit:
 | `courses.json` | Rename classes, set instructors and icons, assign library folders, hide enrollments, add library-only classes |
 | `links.json` | Quick links on the home page, and per-class links |
 | `grading.json` | Syllabus weights and letter scales, for estimated grades |
-| `syllabus.json` | Deliverables from the syllabus that the LMS doesn't list yet |
+| `syllabus.json` | Deliverables from the syllabus that the LMS doesn't list yet (mark in-class ones `inPerson`) |
+| `schedule.json` | Class meeting times, for Today and the calendar |
 | `webassign.json` | WebAssign assignments, kept by hand |
 | `transcript.json` | Completed GPA hours and quality points, for the GPA widget |
 
@@ -143,9 +154,16 @@ Changes apply without a restart. An invalid file is ignored and reported on the
 
 Alerts and sign-in help come from `.env`: `NOTIFY_URL` (an ntfy topic URL, a
 Discord webhook, or any URL that takes a JSON POST) and `APP_URL` (so alerts
-link back to the dashboard) for the sync containers; `SIGNIN_URL` and
-`SIGNIN_HINT` for the **Sign in** button on Data status when a Brightspace
-session expires.
+link back to the dashboard); `REMIND_DUE_HOURS`, `REMIND_EXAM_HOURS` and
+`REMIND_QUIET` for reminders; `SIGNIN_URL` and `SIGNIN_HINT` for the **Sign
+in** button on Data status when a Brightspace session expires;
+`LIBRARY_NAMING_CHECK=1` to list library files that don't follow the
+recommended naming on Data status.
+
+`STATE_DIR` is the app's one writable folder: marks you make (done, hidden
+overdue items, read announcements) so every device sees them, and which
+reminders were sent. Without it (or if it isn't writable), marks stay in each
+browser and reminders are off.
 
 ## On a home server
 
@@ -180,7 +198,10 @@ How it fits together:
   are in `src/lib/school/canvas/fixtures/`.
 - `src/lib/library/catalog.ts` turns the folder tree into units, exam prep and
   classwork (pure, unit-tested).
-- `src/lib/config.ts` and `src/lib/settings.ts` hold all configuration.
+- `src/lib/config.ts` and `src/lib/settings.ts` hold all configuration;
+  `src/lib/state.ts` is the small shared state in `STATE_DIR`.
+- `src/lib/search.ts` backs the Ctrl+K search; `src/lib/reminders.ts` runs
+  in the web server (started from `src/instrumentation.ts`).
 
 ## License
 

@@ -12,6 +12,7 @@ DATA_DIR=/srv/appdata/college-dashboard/data
 CONFIG_DIR=/srv/appdata/college-dashboard/config
 PREVIEWS_DIR=/srv/appdata/college-dashboard/previews
 D2L_AUTH_DIR=/srv/appdata/college-dashboard/d2l-auth
+STATE_DIR=/srv/appdata/college-dashboard/state   # shared marks, sent reminders
 PUID=1000                             # the owner of those folders (`id`)
 PGID=1000
 WEB_PORT=127.0.0.1:3000               # loopback; a proxy or VPN serves it
@@ -103,6 +104,6 @@ new sign-in.
 
 ## Backups
 
-Back up `CONFIG_DIR` (your settings) and your library. `DATA_DIR` is
+Back up `CONFIG_DIR` (your settings), `STATE_DIR` (your marks) and your library. `DATA_DIR` is
 re-synced from the LMS, and `PREVIEWS_DIR` is rebuilt by `convert`. Don't
 back up `D2L_AUTH_DIR` to shared or cloud storage: it holds a live session.

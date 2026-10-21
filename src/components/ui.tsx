@@ -118,16 +118,51 @@ export function CourseTag({ course, link = true }: { course: Course | undefined;
   );
 }
 
-export function Stat({ label, value, tone, href }: { label: string; value: number | string; tone?: Tone; href?: string }) {
+export function Stat({
+  label,
+  value,
+  tone,
+  href,
+  hint,
+  compact,
+  shortLabel,
+}: {
+  label: string;
+  value: number | string;
+  tone?: Tone;
+  href?: string;
+  /** Small note under the value ("+2 older"). */
+  hint?: string;
+  /** Smaller on phones, so four fit in one row. */
+  compact?: boolean;
+  /** Shorter label for phones in compact mode ("7 days"). */
+  shortLabel?: string;
+}) {
   const inner = (
     <>
-      <div className="text-[12px] text-muted">{label}</div>
-      <div className={clsx("text-[22px] font-semibold tracking-tight mt-0.5 tabular-nums", tone === "danger" && Number(value) > 0 && "text-danger")}>
+      <div className={clsx("text-muted", compact ? "text-[11px] md:text-[12px] truncate" : "text-[12px]")}>
+        {shortLabel ? (
+          <>
+            <span className="md:hidden">{shortLabel}</span>
+            <span className="hidden md:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </div>
+      <div
+        className={clsx(
+          "font-semibold tracking-tight mt-0.5 tabular-nums",
+          compact ? "text-[18px] md:text-[22px]" : "text-[22px]",
+          tone === "danger" && Number(value) > 0 && "text-danger",
+        )}
+      >
         {value}
       </div>
+      {hint && <div className="text-[10.5px] md:text-[11px] text-subtle truncate">{hint}</div>}
     </>
   );
-  const cls = "card px-4 py-3 block";
+  const cls = clsx("card block", compact ? "px-2.5 py-2 md:px-4 md:py-3" : "px-4 py-3");
   return href ? (
     <Link href={href} className={clsx(cls, "hover:border-border-strong transition-colors")}>
       {inner}

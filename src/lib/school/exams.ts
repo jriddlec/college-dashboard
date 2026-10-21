@@ -28,7 +28,7 @@ export function examToken(title: string): string | null {
   if (/\bfinal\b/.test(t)) return "final";
   if (/\bmidterm\b/.test(t)) return "midterm";
   const m = /\b(exam|test|quiz)\s*#?\s*(\d+)/.exec(t);
-  if (m) return `${m[1] === "exam" ? "test" : m[1]} ${m[2]}`;
+  if (m) return `${m[1] === "exam" ? "test" : m[1]} ${Number(m[2])}`;
   return null;
 }
 

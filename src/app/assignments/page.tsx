@@ -3,6 +3,8 @@ import Link from "next/link";
 import clsx from "clsx";
 import { CircleCheck, Inbox, PartyPopper } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
+import { getLibrary } from "@/lib/library";
+import { folderLinks, type FolderLink } from "@/lib/library/links";
 import { ASSIGNMENT_FILTERS, courseMap, filterAssignments, groupAssignments, type AssignmentFilter } from "@/lib/school/derive";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { DataUnavailable } from "@/components/data-state";
@@ -28,6 +30,8 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
   const { snapshot } = result;
   const now = new Date();
   const courses = courseMap(snapshot.courses);
+  const library = await getLibrary().catch(() => null);
+  const folders: Map<string, FolderLink> = library?.ok ? folderLinks(snapshot.assignments, library.courses) : new Map();
 
   const counts = Object.fromEntries(ASSIGNMENT_FILTERS.map((f) => [f, filterAssignments(snapshot.assignments, f, now, courseId).length])) as Record<AssignmentFilter, number>;
   const items = filterAssignments(snapshot.assignments, filter, now, courseId);
@@ -87,7 +91,15 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
               </h2>
               <AssignmentList>
                 {g.items.map((a) => (
-                  <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} showCourse={!courseId} dateStyle={g.key === "today" || g.key === "tomorrow" ? "time" : "full"} />
+                  <AssignmentRow
+                    key={a.id}
+                    a={a}
+                    course={courses.get(a.courseId)}
+                    now={now}
+                    showCourse={!courseId}
+                    dateStyle={g.key === "today" || g.key === "tomorrow" ? "time" : "full"}
+                    folder={folders.get(a.id)}
+                  />
                 ))}
               </AssignmentList>
             </section>
@@ -96,7 +108,7 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
       ) : (
         <AssignmentList>
           {items.map((a) => (
-            <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} showCourse={!courseId} dateStyle="full" />
+            <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} showCourse={!courseId} dateStyle="full" folder={folders.get(a.id)} />
           ))}
         </AssignmentList>
       )}

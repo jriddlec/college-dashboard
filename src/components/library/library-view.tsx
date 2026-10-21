@@ -13,6 +13,11 @@ function allGroups(groups: Group[]): Group[] {
   return groups.flatMap((g) => [g, ...allGroups(g.children)]);
 }
 
+/** Open a group and every folder above it, so a link to a nested folder (Labs/Lab 4) shows it. */
+function openPath(groups: Group[], id: string): OpenState {
+  return Object.fromEntries(groups.filter((g) => g.id === id || id.startsWith(g.id + "/")).map((g) => [g.id, true]));
+}
+
 function matches(m: Material, q: string, filter: Filter | null): boolean {
   if (filter && KIND_FILTER[m.kind] !== filter) return false;
   if (!q) return true;
@@ -41,10 +46,10 @@ export function LibraryView({ lib, focus }: { lib: CourseLibrary; focus?: string
   );
   const everyGroup = useMemo(() => sections.flatMap((s) => allGroups(s.groups)), [sections]);
 
-  // Default: the newest exam prep and the current unit open, everything else closed.
+  // Default: the next exam's prep and the current unit open, everything else closed.
   const defaults = useMemo<OpenState>(() => {
     const o: OpenState = {};
-    if (lib.exams[0]) o[lib.exams[0].id] = true;
+    if (lib.exams[0] && !(lib.exams[0].examDays != null && lib.exams[0].examDays < 0)) o[lib.exams[0].id] = true;
     if (lib.currentUnitId) o[lib.currentUnitId] = true;
     return o;
   }, [lib]);
@@ -59,10 +64,10 @@ export function LibraryView({ lib, focus }: { lib: CourseLibrary; focus?: string
       // Restore the user's last expand/collapse choices after hydration;
       // ?open=<group id> (links from Home) also opens that group and scrolls to it.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpen(focus ? { ...restored, [focus]: true } : restored);
+      setOpen(focus ? { ...restored, ...openPath(everyGroup, focus) } : restored);
     } catch {}
     if (focus) requestAnimationFrame(() => document.getElementById(domId(focus))?.scrollIntoView({ block: "start" }));
-  }, [storageKey, defaults, focus]);
+  }, [storageKey, defaults, focus, everyGroup]);
 
   function persist(next: OpenState) {
     setOpen(next);
@@ -199,12 +204,13 @@ function GroupHeader({ g, isOpen, onClick, kind, nested }: { g: Group; isOpen: b
       )}
       <span className={clsx("min-w-0 flex-1 truncate", nested ? "text-[13px] font-medium" : "text-[14px] font-semibold", empty && "text-subtle font-normal")}>{g.title}</span>
       {g.tag && <span className="hidden sm:inline text-[11.5px] text-muted bg-surface-2 rounded px-1.5 py-px whitespace-nowrap">{g.tag}</span>}
+      {g.examDays != null && <ExamChip days={g.examDays} />}
       {empty ? (
         <span className="text-[12px] text-subtle whitespace-nowrap">Nothing yet</span>
       ) : (
         <span className="text-[12px] text-muted tabular-nums whitespace-nowrap">
           {g.total} {g.total === 1 ? "item" : "items"}
-          {g.latest && !nested && <span className="hidden sm:inline text-subtle"> · {shortDate(g.latest)}</span>}
+          {(g.date ?? (nested ? null : g.latest)) && <span className="hidden sm:inline text-subtle"> · {shortDate((g.date ?? g.latest)!)}</span>}
         </span>
       )}
     </button>
@@ -236,6 +242,21 @@ function GroupBody({ g, isOpen: openFn, onToggle, kind }: { g: Group; isOpen: (i
         );
       })}
     </div>
+  );
+}
+
+/** Countdown on an exam-prep folder: "in 3 days", "Today", or "Done" once the exam is past. */
+function ExamChip({ days }: { days: number }) {
+  const label = days < 0 ? "Done" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`;
+  return (
+    <span
+      className={clsx(
+        "text-[11.5px] rounded px-1.5 py-px whitespace-nowrap tabular-nums",
+        days < 0 ? "bg-surface-2 text-subtle" : days <= 3 ? "bg-danger-soft text-danger" : days <= 7 ? "bg-warn-soft text-warn" : "bg-info-soft text-info",
+      )}
+    >
+      {label}
+    </span>
   );
 }
 

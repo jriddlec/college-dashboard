@@ -4,9 +4,10 @@ import path from "node:path";
 import { connection } from "next/server";
 import { SCHOOL_TZ } from "@/lib/school/time";
 import { getSchoolData } from "@/lib/school";
+import type { SnapshotResult } from "@/lib/school/types";
 import { courseHue } from "@/lib/school/derive";
 import { getCourseOverrides } from "@/lib/config";
-import { buildCourseLibrary, type CourseLibrary, type DirNode, type LibraryCourse } from "./catalog";
+import { buildCourseLibrary, type CourseLibrary, type DirNode, type ExamDate, type LibraryCourse } from "./catalog";
 
 /**
  * LIBRARY_DIR holds the class folders (read-only to the app). PREVIEWS_DIR
@@ -25,8 +26,8 @@ export function slugify(code: string): string {
  * The library's classes: the LMS's active courses (with courses.json
  * overrides), plus library-only classes from courses.json. Sorted by code.
  */
-export async function getLibraryCourses(): Promise<LibraryCourse[]> {
-  const [data, overrides] = await Promise.all([getSchoolData(), getCourseOverrides()]);
+export async function getLibraryCourses(preloaded?: SnapshotResult): Promise<LibraryCourse[]> {
+  const [data, overrides] = await Promise.all([preloaded ?? getSchoolData(), getCourseOverrides()]);
   const o = overrides.value;
   const used = new Set<string>();
   const out: LibraryCourse[] = [];
@@ -125,13 +126,32 @@ export async function getLibrary(): Promise<Library> {
     const previews = new Set<string>();
     await walkPreviews(previewsDir(), "", previews);
     const t = today();
-    const courses = await getLibraryCourses();
-    value = { ok: true, courses: courses.map((c) => buildCourseLibrary(c, root.dirs, previews, t)), scannedAt: new Date().toISOString() };
+    const data = await getSchoolData();
+    const courses = await getLibraryCourses(data);
+    const exams = examDatesByCourse(data);
+    value = {
+      ok: true,
+      courses: courses.map((c) => buildCourseLibrary(c, root.dirs, previews, t, (c.id && exams.get(c.id)) || [])),
+      scannedAt: new Date().toISOString(),
+    };
   } catch (e) {
     value = { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
   cache = { at: Date.now(), value };
   return value;
+}
+
+/** Exams per course id (exam-kind assignments and calendar events), to date the exam-prep folders. */
+function examDatesByCourse(data: SnapshotResult): Map<string, ExamDate[]> {
+  const out = new Map<string, ExamDate[]>();
+  if (data.status !== "ok") return out;
+  const add = (courseId: string | null, title: string, at: string | null) => {
+    if (!courseId || !at) return;
+    out.set(courseId, [...(out.get(courseId) ?? []), { title, at }]);
+  };
+  for (const a of data.snapshot.assignments) if (a.kind === "exam") add(a.courseId, a.title, a.dueAt);
+  for (const e of data.snapshot.events) if (e.kind === "exam") add(e.courseId, e.title, e.startsAt);
+  return out;
 }
 
 export async function getCourseLibrary(slug: string): Promise<CourseLibrary | null | { error: string }> {
@@ -141,16 +161,13 @@ export async function getCourseLibrary(slug: string): Promise<CourseLibrary | nu
 }
 
 /**
- * Resolve URL path segments to a file under `root`, refusing anything that
- * escapes it or touches a dotfile. Returns null when invalid.
+ * Resolve route path segments (already URL-decoded by Next) to a file under
+ * `root`, refusing anything that escapes it or touches a dotfile. Returns null
+ * when invalid. Decoding again would break names that contain "%".
  */
 export function safeResolve(root: string, segments: string[]): { abs: string; rel: string } | null {
   const parts: string[] = [];
-  for (const raw of segments) {
-    let s = raw;
-    try {
-      s = decodeURIComponent(raw);
-    } catch {}
+  for (const s of segments) {
     if (!s || s === "." || s === ".." || s.startsWith(".") || /[\\/\0]/.test(s)) return null;
     parts.push(s);
   }

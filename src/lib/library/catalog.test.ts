@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildCourseLibrary, kindOf, materialsOf, parseName, type DirNode, type LibraryCourse } from "./catalog";
+import { buildCourseLibrary, kindOf, materialsOf, orderExams, parseName, type DirNode, type Group, type LibraryCourse } from "./catalog";
+import { extractText, snippet } from "./fulltext";
+import { folderLinks, itemToken } from "./links";
+import { namingIssues } from "./naming";
 
 const course: LibraryCourse = { slug: "math-2260", id: "611005", code: "MATH 2260", name: "Calc II", instructor: "Smith", term: "Fall 2026", hue: 212, icon: null, folders: null };
 
@@ -8,13 +11,24 @@ function dir(path: string, files: string[], dirs: DirNode[] = []): DirNode {
 }
 
 describe("parseName", () => {
-  it("splits date, title and extension", () => {
+  it("splits date, type, topic, variant and extension", () => {
     expect(parseName("2026-09-29 Master Study Guide - Test 2 (3.1-3.4).html")).toEqual({
       stem: "2026-09-29 Master Study Guide - Test 2 (3.1-3.4)",
       ext: "html",
       date: "2026-09-29",
-      title: "Master Study Guide - Test 2 (3.1-3.4)",
+      title: "Test 2",
+      type: "Master Study Guide",
+      variant: "3.1-3.4",
     });
+  });
+  it("keeps names without a known type whole", () => {
+    expect(parseName("2026-09-06 Defense Summary 1 - Module 1.md")).toMatchObject({ title: "Defense Summary 1 - Module 1", type: null, variant: null });
+    expect(parseName("Practice Guide - Test 2 (key).pdf")).toMatchObject({ title: "Practice Guide - Test 2 (key)", type: null });
+  });
+  it("reads course series types and bare types", () => {
+    expect(parseName("2026-08-20 OSE Notes - 1.1-1.3 Areas (annotated).pdf")).toMatchObject({ type: "OSE Notes", title: "1.1-1.3 Areas", variant: "annotated" });
+    expect(parseName("Syllabus.pdf")).toMatchObject({ type: "Syllabus", title: "Syllabus", variant: null });
+    expect(parseName("Rubric - Defense Summary (old).docx")).toMatchObject({ type: "Rubric", title: "Defense Summary", variant: "old" });
   });
   it("cleans underscore names and the class prefix", () => {
     expect(parseName("MATH2260_T1_Guide_F26_accessible.pdf", "MATH2260").title).toBe("T1 Guide F26");
@@ -38,6 +52,21 @@ describe("kindOf", () => {
     ["Comprehensive Final Test Review", "docx", "review"],
   ])("%s.%s → %s", (title, ext, kind) => {
     expect(kindOf(title, ext)).toBe(kind);
+  });
+});
+
+describe("kindOf with a type", () => {
+  it.each([
+    ["Submission", "pdf", "work"],
+    ["Graded", "pdf", "work"],
+    ["Instructions", "pdf", "assignment"],
+    ["Exam Paper", "pdf", "practice"],
+    ["Recording", "mp3", "audio"],
+    ["Recording", "mp4", "video"],
+    ["Model Notes", "html", "notes"],
+    ["Template", "pdf", "guidelines"],
+  ])("%s .%s → %s", (type, ext, kind) => {
+    expect(kindOf("anything", ext, type)).toBe(kind);
   });
 });
 
@@ -104,6 +133,59 @@ describe("buildCourseLibrary", () => {
   });
 });
 
+describe("dated folders", () => {
+  it("takes the date out of the title and orders by it", () => {
+    const roots = [
+      dir("CSCI1301 Classwork", [], [
+        dir("CSCI1301 Classwork/In-Class Activities", [], [
+          dir("CSCI1301 Classwork/In-Class Activities/2026-09-15 Boolean Activity", ["BooleanFun.java"]),
+          dir("CSCI1301 Classwork/In-Class Activities/2026-08-25 Bill Activity", ["Bill.java"]),
+        ]),
+      ]),
+    ];
+    const lib = buildCourseLibrary({ ...course, code: "CSCI 1301" }, roots, new Set(), "2026-10-05");
+    const kids = lib.classwork[0].children;
+    expect(kids.map((k) => [k.title, k.date])).toEqual([
+      ["Bill Activity", "2026-08-25"],
+      ["Boolean Activity", "2026-09-15"],
+    ]);
+    expect(lib.classwork[0].latest).toBe("2026-09-15");
+  });
+});
+
+describe("orderExams", () => {
+  const g = (title: string, latest: string): Group => ({ id: title, title, number: null, tag: null, readme: null, items: [], children: [], total: 1, latest });
+  const groups = [g("Test 1 Material", "2026-09-09"), g("Test 3 Material", "2026-10-21"), g("Final Exam Material", "2026-10-01"), g("Quiz 9 Material", "2026-09-01")];
+  const exams = [
+    { title: "Test 1", at: "2026-09-10T15:35:00Z" },
+    { title: "Test 3 (5.1–5.6) (syllabus)", at: "2026-10-22T15:35:00Z" },
+    { title: "Final Exam (CRN 1)", at: "2026-12-08T17:00:00Z" },
+  ];
+  it("puts upcoming exams first, soonest first, then undated, then past", () => {
+    const out = orderExams(groups, exams, "2026-10-21");
+    expect(out.map((x) => [x.title, x.examDays])).toEqual([
+      ["Test 3 Material", 1],
+      ["Final Exam Material", 48],
+      ["Quiz 9 Material", null],
+      ["Test 1 Material", -41],
+    ]);
+  });
+});
+
+describe("fulltext", () => {
+  it("reads visible text and strings inside template scripts", () => {
+    const html = `<html><style>.a{color:red}</style><h1>Ratio &amp; Root</h1><script>const GUIDE = { title: "The ratio test compares terms", url: "https://x.y/z" };</script></html>`;
+    const t = extractText(html, "html");
+    expect(t).toContain("Ratio & Root");
+    expect(t).toContain("The ratio test compares terms");
+    expect(t).not.toContain("color:red");
+    expect(t).not.toContain("https://x.y/z");
+  });
+  it("cuts a snippet around the first hit", () => {
+    expect(snippet("a ".repeat(200) + "needle here", ["needle"], 40)).toMatch(/^….*needle here$/);
+  });
+});
+
 describe("buildCourseLibrary folder layouts", () => {
   it("finds role folders one level down (BIOL 1107/Notes)", () => {
     const roots = [
@@ -124,5 +206,57 @@ describe("buildCourseLibrary folder layouts", () => {
     expect(lib.units).toEqual([]);
     expect(lib.documents.map((d) => d.title)).toEqual(["Biology"]);
     expect(lib.stats.items).toBe(2);
+  });
+});
+
+describe("folder links", () => {
+  it.each([
+    ["Lab04 Part 2", "lab 4"],
+    ["Assignm 4: weekend plans", "assignment 4"],
+    ["Assign 5: read aloud and record", "assignment 5"],
+    ["Conversation 2 (in person)", "conversation 2"],
+    ["Defense Summary 3", "defense summary 3"],
+    ["Pre-class 6.1 Power Series (WebAssign)", null],
+  ])("%s → %s", (title, token) => {
+    expect(itemToken(title)).toBe(token);
+  });
+  it("links assignments to classwork items and exam-prep folders", () => {
+    const roots = [
+      dir("MATH2260 Notes", [], [dir("MATH2260 Notes/_Test 3 Material", ["2026-10-13 Study Guide - Test 3.html"])]),
+      dir("MATH2260 Classwork", [], [dir("MATH2260 Classwork/Labs", [], [dir("MATH2260 Classwork/Labs/Lab 4", ["a.java"]), dir("MATH2260 Classwork/Labs/Lab 5", ["b.java"])])]),
+    ];
+    const lib = buildCourseLibrary(course, roots, new Set(), "2026-10-05");
+    const a = (id: string, title: string, kind: "assignment" | "exam" = "assignment") => ({ id, courseId: "611005", title, kind, dueAt: null, status: "unknown" as const, pointsPossible: null, pointsEarned: null, url: null });
+    const links = folderLinks([a("1", "Lab04"), a("2", "Test 3 (5.1–5.6)", "exam"), a("3", "Lab09"), { ...a("4", "Lab05"), courseId: "other" }], [lib]);
+    expect(links.get("1")).toEqual({ href: "/library/math-2260?open=MATH2260%20Classwork%2FLabs%2FLab%204", label: "Lab 4" });
+    expect(links.get("2")?.label).toBe("Test 3 Material");
+    expect(links.has("3")).toBe(false);
+    expect(links.has("4")).toBe(false);
+  });
+});
+
+describe("naming check", () => {
+  it("flags names off the convention and loose classwork files, not collapsed single items", () => {
+    const roots = [
+      dir("MATH2260 Notes", ["_Course Log.md", "stray.pdf"], [
+        dir("MATH2260 Notes/1 - Limits (Ch 1)", ["2026-08-20 Lecture Notes - 1.1 Limits.pdf", "notes_1.pdf", "Circle.java"]),
+        dir("MATH2260 Notes/_Test 1 Material", ["_README.md", "2026-09-01 Study Guide - Test 1.html"]),
+        dir("MATH2260 Notes/Misc", ["a.pdf"]),
+      ]),
+      dir("MATH2260 Classwork", [], [
+        dir("MATH2260 Classwork/Tests", [], [dir("MATH2260 Classwork/Tests/Oral Test", ["2026-11-11 Rubric - Oral Test.docx"])]),
+        dir("MATH2260 Classwork/Labs", ["Lab sheet.pdf"], [dir("MATH2260 Classwork/Labs/Lab 1", ["Lab01.pdf"]), dir("MATH2260 Classwork/Labs/Lab 2", ["2026-09-01 Instructions - Lab 2.pdf"])]),
+      ]),
+      dir("MATH2260 Important Documents", ["Syllabus.pdf", "Course Schedule.html"]),
+    ];
+    const issues = namingIssues(buildCourseLibrary(course, roots, new Set(), "2026-10-05"));
+    expect(issues.map((i) => i.path).sort()).toEqual([
+      "MATH2260 Classwork/Labs/Lab 1/Lab01.pdf",
+      "MATH2260 Classwork/Labs/Lab sheet.pdf",
+      "MATH2260 Important Documents/Course Schedule.html",
+      "MATH2260 Notes/1 - Limits (Ch 1)/notes_1.pdf",
+      "MATH2260 Notes/Misc",
+      "MATH2260 Notes/stray.pdf",
+    ]);
   });
 });

@@ -41,6 +41,7 @@ export function webAssignFor(courseId: string, cfg: WebAssignCourse): Assignment
       url: dep ? webAssignAssignmentUrl(dep) : cfg.url,
       earlyBonusAt: hasBonus ? new Date(Date.parse(due) - bonus.hours * 36e5).toISOString() : null,
       earlyBonusPercent: hasBonus ? bonus.percent : null,
+      source: "webassign" as const,
     };
   });
 }

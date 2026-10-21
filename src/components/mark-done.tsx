@@ -4,20 +4,13 @@ import { Check } from "lucide-react";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { MARKED_DONE_COOKIE, encodeIdCookie, parseIdCookie } from "@/lib/hidden-overdue";
-
-function readCookie(): string[] {
-  const raw = document.cookie.split("; ").find((c) => c.startsWith(`${MARKED_DONE_COOKIE}=`));
-  return parseIdCookie(raw?.slice(MARKED_DONE_COOKIE.length + 1));
-}
-
-function writeCookie(ids: string[]) {
-  document.cookie = `${MARKED_DONE_COOKIE}=${encodeIdCookie(ids)}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-}
+import { MARKED_DONE_COOKIE } from "@/lib/hidden-overdue";
+import { readCookieIds, saveShared, writeCookieIds } from "@/lib/state-client";
 
 /**
  * The row's status circle, as a toggle for items the LMS can't confirm.
- * Marks are kept in this browser (a cookie), not sent to the LMS.
+ * Marks are kept by the app (shared by your devices) when it has a state
+ * folder, else in this browser (a cookie). Never sent to the LMS.
  */
 export function MarkDoneToggle({ id, marked, overdue }: { id: string; marked: boolean; overdue: boolean }) {
   const router = useRouter();
@@ -30,11 +23,15 @@ export function MarkDoneToggle({ id, marked, overdue }: { id: string; marked: bo
       aria-label={label}
       aria-pressed={marked}
       disabled={pending}
-      onClick={() => {
-        const ids = readCookie().filter((x) => x !== id);
-        writeCookie(marked ? ids : [...ids, id]);
-        start(() => router.refresh());
-      }}
+      onClick={() =>
+        start(async () => {
+          const shared = await saveShared("markedDone", { ids: [id], on: !marked });
+          // An unmark also clears an old per-browser mark; without a shared store the cookie is the mark.
+          const ids = readCookieIds(MARKED_DONE_COOKIE).filter((x) => x !== id);
+          writeCookieIds(MARKED_DONE_COOKIE, marked || shared ? ids : [...ids, id]);
+          router.refresh();
+        })
+      }
       className={clsx(
         "group/done mt-0.5 size-4 shrink-0 rounded-full border grid place-items-center transition-colors cursor-pointer",
         marked ? "bg-ok/70 border-ok/70 text-white" : overdue ? "border-danger hover:bg-danger-soft" : "border-border-strong hover:bg-surface-2",

@@ -2,11 +2,8 @@
 
 import { EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HIDDEN_OVERDUE_COOKIE, encodeIdCookie } from "@/lib/hidden-overdue";
-
-function write(ids: string[]) {
-  document.cookie = `${HIDDEN_OVERDUE_COOKIE}=${encodeIdCookie(ids)}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-}
+import { HIDDEN_OVERDUE_COOKIE } from "@/lib/hidden-overdue";
+import { saveShared, writeCookieIds } from "@/lib/state-client";
 
 /** Hides one overdue assignment from the Today page. It stays on /assignments?filter=overdue. */
 export function HideOverdueButton({ id, hidden }: { id: string; hidden: string[] }) {
@@ -14,8 +11,8 @@ export function HideOverdueButton({ id, hidden }: { id: string; hidden: string[]
   return (
     <button
       type="button"
-      onClick={() => {
-        write([...new Set([...hidden, id])]);
+      onClick={async () => {
+        if (!(await saveShared("hiddenOverdue", { ids: [id], on: true }))) writeCookieIds(HIDDEN_OVERDUE_COOKIE, [...new Set([...hidden, id])]);
         router.refresh();
       }}
       title="Hide from dashboard"
@@ -33,8 +30,9 @@ export function ShowHiddenOverdue({ count }: { count: number }) {
   return (
     <button
       type="button"
-      onClick={() => {
-        write([]);
+      onClick={async () => {
+        await saveShared("hiddenOverdue", { clear: true });
+        writeCookieIds(HIDDEN_OVERDUE_COOKIE, []);
         router.refresh();
       }}
       className="block w-full text-center text-[12.5px] text-muted hover:text-fg py-1"

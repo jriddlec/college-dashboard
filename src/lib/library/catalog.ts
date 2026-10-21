@@ -13,7 +13,15 @@
  * The role can be in the top-level name ("CSCI3030 Notes") or one level down
  * ("CSCI 3030/Notes"). Files that differ only by extension (Guide.html +
  * Guide.pdf) become one item.
+ *
+ * File names that follow the recommended pattern (docs/library.md)
+ *   [YYYY-MM-DD ]<Type> - <Topic>[ (<variant>)].<ext>
+ * are read exactly: the Type (from TYPE_KIND) sets the kind and badge, the
+ * Topic is the title and the variant becomes a chip. Other names fall back to
+ * keyword matching. Folders named "YYYY-MM-DD <Title>" are dated the same way.
  */
+import { examToken } from "../school/exams";
+import { dayKey, daysBetween } from "../school/time";
 
 /** A class as the library sees it (from the LMS snapshot and courses.json). */
 export type LibraryCourse = {
@@ -103,6 +111,10 @@ export type Material = {
   title: string;
   date: string | null;
   kind: Kind;
+  /** The name's Type ("Study Guide", "Submission"), when it follows the recommended pattern; shown as the badge. */
+  type: string | null;
+  /** The name's trailing "(…)" for typed names: "annotated", "v2", "official". */
+  variant: string | null;
   primary: Format;
   /** Other formats of the same document (e.g. the PDF of an HTML guide). */
   alternates: Format[];
@@ -126,7 +138,15 @@ export type Group = {
   /** Items in this group and all subgroups (readme included). */
   total: number;
   latest: string | null;
+  /** Date from a "YYYY-MM-DD <Title>" folder name. */
+  date?: string | null;
+  /** Exam-prep folders: when the matching exam is (from the LMS/syllabus), and days from today (negative = past). */
+  examAt?: string | null;
+  examDays?: number | null;
 };
+
+/** An exam on the calendar, for ordering and dating exam-prep folders. */
+export type ExamDate = { title: string; at: string };
 
 export type CourseLibrary = {
   course: LibraryCourse;
@@ -186,8 +206,60 @@ export function hrefFor(path: string, mode: OpenMode): string {
   }
 }
 
-/** "2026-09-29 Master Study Guide - Test 2.html" → { date, title: "Master Study Guide - Test 2" } */
-export function parseName(name: string, folderPrefix?: string): { stem: string; ext: string; date: string | null; title: string } {
+/**
+ * Document types of the recommended naming, and the kind each one is. Any
+ * other "<Something> Notes" type (a course's own series, e.g. "OSE Notes") is notes.
+ */
+export const TYPE_KIND: Record<string, Kind> = {
+  "Lecture Notes": "notes",
+  "Lesson Notes": "notes",
+  Slides: "slides",
+  Reading: "reading",
+  Textbook: "reading",
+  "Pre-Class": "preclass",
+  Activity: "activity",
+  Worksheet: "activity",
+  Recording: "video",
+  "Study Guide": "guide",
+  "Master Study Guide": "guide",
+  "Practice Problems": "practice",
+  "Practice Test": "practice",
+  "Practice Quiz": "practice",
+  "Exam Paper": "practice",
+  Review: "review",
+  Instructions: "assignment",
+  Draft: "work",
+  Submission: "work",
+  Graded: "work",
+  Rubric: "guidelines",
+  Template: "guidelines",
+  Guidelines: "guidelines",
+  Syllabus: "info",
+  Schedule: "info",
+  Info: "info",
+  Setup: "info",
+};
+
+/** The kind for a document type, or null when it isn't one. */
+export function typeKind(type: string): Kind | null {
+  return TYPE_KIND[type] ?? (/^[A-Z][\w-]*( [A-Z][\w-]*)? Notes$/.test(type) ? "notes" : null);
+}
+
+/** "3.7 Improper Integrals (annotated)" → ["3.7 Improper Integrals", "annotated"] */
+function splitVariant(s: string): [string, string | null] {
+  const m = /^(.*\S)\s+\(([^()]+)\)$/.exec(s);
+  return m ? [m[1], m[2]] : [s, null];
+}
+
+/**
+ * "2026-09-29 Study Guide - 3.7 Improper Integrals (KaTeX).html" →
+ * { date, title: "3.7 Improper Integrals", type: "Study Guide", variant: "KaTeX" }.
+ * Names without a known Type keep their whole title (type and variant null).
+ */
+export function parseName(
+  name: string,
+  folderPrefix?: string,
+): { stem: string; ext: string; date: string | null; title: string; type: string | null; variant: string | null } {
   const ext = extOf(name);
   const stem = ext ? name.slice(0, -(ext.length + 1)) : name;
   let title = stem.replace(/^_+/, "");
@@ -201,10 +273,27 @@ export function parseName(name: string, folderPrefix?: string): { stem: string; 
   title = title.replace(/_ /g, ": ").replace(/_/g, " ");
   if (folderPrefix && title.startsWith(folderPrefix + " ")) title = title.slice(folderPrefix.length + 1);
   title = title.replace(/\s+accessible\b/i, "").replace(/\s{2,}/g, " ").trim();
-  return { stem, ext, date, title: title || stem };
+  let type: string | null = null;
+  let variant: string | null = null;
+  const typed = /^(.+?) - (.+)$/.exec(title);
+  if (typed && typeKind(typed[1])) {
+    type = typed[1];
+    [title, variant] = splitVariant(typed[2]);
+  } else {
+    // A bare type ("Syllabus.pdf", "Syllabus (old).pdf") is its own title.
+    const [base, v] = splitVariant(title);
+    if (typeKind(base)) [type, title, variant] = [base, base, v];
+  }
+  return { stem, ext, date, title: title || stem, type, variant };
 }
 
-export function kindOf(title: string, ext: string): Kind {
+const VIDEO_EXT = ["mp4", "webm", "mov"];
+const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg"];
+
+export function kindOf(title: string, ext: string, type?: string | null): Kind {
+  const fromType = type ? typeKind(type) : null;
+  if (fromType === "video") return AUDIO_EXT.includes(ext) ? "audio" : VIDEO_EXT.includes(ext) ? "video" : "text";
+  if (fromType) return fromType;
   const t = title.toLowerCase();
   if (ext === "zip") return "archive";
   if (/\bscan\b|\bmy work\b/.test(t)) return "work";
@@ -247,13 +336,15 @@ export function materialsOf(files: FileEntry[], ctx: Ctx): Material[] {
   for (const group of byStem.values()) {
     group.sort((a, b) => (EXT_RANK[extOf(a.name)] ?? 9) - (EXT_RANK[extOf(b.name)] ?? 9) || a.name.localeCompare(b.name));
     const [first, ...rest] = group;
-    const { date, title } = parseName(first.name, ctx.folderPrefix);
+    const { date, title, type, variant } = parseName(first.name, ctx.folderPrefix);
     const primary = format(first, ctx.previews);
     out.push({
       id: first.path,
       title,
       date,
-      kind: kindOf(title, primary.ext),
+      kind: kindOf(title, primary.ext, type),
+      type,
+      variant,
       primary,
       alternates: rest.map((f) => format(f, ctx.previews)),
       download: hrefFor(first.path, "download"),
@@ -275,9 +366,15 @@ type Ctx = { previews: ReadonlySet<string>; today: string; folderPrefix: string 
 
 const README = /^_?readme\.(md|txt|html?)$/i;
 
-function cleanFolderTitle(name: string, folderPrefix: string): { title: string; number: number | null; tag: string | null } {
+function cleanFolderTitle(name: string, folderPrefix: string): { title: string; number: number | null; tag: string | null; date: string | null } {
   let title = name.replace(/^_+/, "");
   if (title.startsWith(folderPrefix + " ")) title = title.slice(folderPrefix.length + 1);
+  let date: string | null = null;
+  const dated = /^(\d{4}-\d{2}-\d{2})\s+(.+)$/.exec(title);
+  if (dated) {
+    date = dated[1];
+    title = dated[2];
+  }
   let number: number | null = null;
   const num = /^(\d+)\s*-\s*(.+)$/.exec(title);
   if (num) {
@@ -290,7 +387,7 @@ function cleanFolderTitle(name: string, folderPrefix: string): { title: string; 
     tag = ch[1];
     title = title.slice(0, ch.index);
   }
-  return { title: title.trim(), number, tag };
+  return { title: title.trim(), number, tag, date };
 }
 
 export function buildGroup(dir: DirNode, ctx: Ctx): Group {
@@ -299,11 +396,11 @@ export function buildGroup(dir: DirNode, ctx: Ctx): Group {
   while (node.files.filter((f) => !IGNORED_FILES.test(f.name)).length === 0 && node.dirs.length === 1) node = node.dirs[0];
 
   const readmeFile = node.files.find((f) => README.test(f.name));
-  const readme = readmeFile ? { ...materialsOf([readmeFile], ctx)[0], title: "About this folder", kind: "log" as const } : null;
+  const readme = readmeFile ? { ...materialsOf([readmeFile], ctx)[0], title: "About this folder", kind: "log" as const, type: null, variant: null } : null;
   const items = materialsOf(node.files.filter((f) => f !== readmeFile), ctx);
   const children = node.dirs.map((d) => buildGroup(d, ctx)).sort(byGroupOrder);
-  const { title, number, tag } = cleanFolderTitle(dir.name, ctx.folderPrefix);
-  const dates = [...items.map((i) => i.date), ...children.map((c) => c.latest)].filter((d): d is string => !!d && d <= ctx.today);
+  const { title, number, tag, date } = cleanFolderTitle(dir.name, ctx.folderPrefix);
+  const dates = [date, ...items.map((i) => i.date), ...children.map((c) => c.latest)].filter((d): d is string => !!d && d <= ctx.today);
   return {
     id: dir.path,
     title,
@@ -314,12 +411,50 @@ export function buildGroup(dir: DirNode, ctx: Ctx): Group {
     children,
     total: items.length + (readme ? 1 : 0) + children.reduce((n, c) => n + c.total, 0),
     latest: dates.length ? dates.sort().at(-1)! : null,
+    date,
   };
 }
 
 function byGroupOrder(a: Group, b: Group): number {
   if (a.number != null && b.number != null && a.number !== b.number) return a.number - b.number;
+  if (a.date && b.date && a.date !== b.date) return a.date < b.date ? -1 : 1;
   return a.title.localeCompare(b.title, undefined, { numeric: true });
+}
+
+/**
+ * Dates each exam-prep folder by the exam with the same name and number
+ * ("_Test 3 Material" ↔ "Test 3 (5.1–5.6)") and orders them: upcoming exams
+ * soonest first, then folders with no exam on the calendar (newest material
+ * first), then past exams (most recent first).
+ */
+export function orderExams(groups: Group[], exams: ExamDate[], today: string): Group[] {
+  const dated = groups.map((g) => {
+    const token = examToken(g.title);
+    const matches = token ? exams.filter((e) => examToken(e.title) === token).sort((a, b) => Date.parse(a.at) - Date.parse(b.at)) : [];
+    const next = matches.find((e) => dayKey(e.at) >= today) ?? matches.at(-1);
+    return next ? { ...g, examAt: next.at, examDays: daysBetween(today, dayKey(next.at)) } : { ...g, examAt: null, examDays: null };
+  });
+  const rank = (g: Group) => (g.examDays == null ? 1 : g.examDays >= 0 ? 0 : 2);
+  return dated.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      (rank(a) === 0 ? a.examDays! - b.examDays! : rank(a) === 2 ? b.examDays! - a.examDays! : (b.latest ?? "").localeCompare(a.latest ?? "")) ||
+      a.title.localeCompare(b.title),
+  );
+}
+
+/** Where each item lives ("MATH 2260 · Unit 3: Techniques of Integration"), by material id. */
+export function itemContexts(lib: CourseLibrary): Map<string, string> {
+  const out = new Map<string, string>();
+  const visit = (groups: Group[], prefix: string) => {
+    for (const g of groups) {
+      const label = `${prefix} · ${g.number != null ? `Unit ${g.number}: ` : ""}${g.title}`;
+      for (const m of [...(g.readme ? [g.readme] : []), ...g.items]) out.set(m.id, label);
+      visit(g.children, prefix);
+    }
+  };
+  visit([...lib.exams, ...lib.units, ...lib.classwork, ...lib.documents], lib.course.code);
+  return out;
 }
 
 /** Every item in a group tree, readmes included. */
@@ -363,7 +498,7 @@ export function foldersOf(course: LibraryCourse, roots: DirNode[]): { dirs: DirN
  * Build one class's library from its top-level folders. `previews` holds
  * library paths that have a converted PDF.
  */
-export function buildCourseLibrary(course: LibraryCourse, roots: DirNode[], previews: ReadonlySet<string>, today: string): CourseLibrary {
+export function buildCourseLibrary(course: LibraryCourse, roots: DirNode[], previews: ReadonlySet<string>, today: string, examDates: ExamDate[] = []): CourseLibrary {
   const { dirs: mine, prefix } = foldersOf(course, roots);
   const ctx: Ctx = { previews, today, folderPrefix: prefix };
 
@@ -403,8 +538,7 @@ export function buildCourseLibrary(course: LibraryCourse, roots: DirNode[], prev
     }
   }
   units.sort(byGroupOrder);
-  // Most recent first: the exam coming up next is usually the one being prepared.
-  exams.sort((a, b) => (b.latest ?? "").localeCompare(a.latest ?? "") || a.title.localeCompare(b.title));
+  const examGroups = orderExams(exams, examDates, today);
 
   const classwork: Group[] = [];
   for (const cw of byRole.classwork) {
@@ -423,7 +557,7 @@ export function buildCourseLibrary(course: LibraryCourse, roots: DirNode[], prev
   const loose = materialsOf(looseFiles, ctx);
   if (loose.length) documents.push(syntheticGroup(`${mine[0].path}#files`, "Files", loose));
 
-  const all = flatten([...exams, ...units, ...classwork, ...documents]);
+  const all = flatten([...examGroups, ...units, ...classwork, ...documents]);
   const dated = all.map((m) => m.date).filter((d): d is string => !!d && d <= today).sort();
   const latest = dated.at(-1) ?? null;
   const current = latest ? units.filter((u) => u.latest === latest).at(-1) : undefined;
@@ -431,7 +565,7 @@ export function buildCourseLibrary(course: LibraryCourse, roots: DirNode[], prev
     course,
     folderPrefix: prefix,
     roots: mine.map((d) => d.name),
-    exams,
+    exams: examGroups,
     units,
     classwork,
     documents,

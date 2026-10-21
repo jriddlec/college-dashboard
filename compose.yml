@@ -20,6 +20,8 @@ services:
     image: college-dashboard:local
     container_name: college-dashboard
     restart: unless-stopped
+    # The owner of STATE_DIR (and of the read-only folders), like the sync containers.
+    user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       LMS: ${LMS:-fixture}
       LMS_URL: ${LMS_URL:-}
@@ -31,12 +33,24 @@ services:
       # Shown on /status when the D2L session needs a sign-in (see .env.example).
       SIGNIN_URL: ${SIGNIN_URL:-}
       SIGNIN_HINT: ${SIGNIN_HINT:-}
+      # Deadline/exam reminders (need STATE_DIR) and links back to the app.
+      NOTIFY_URL: ${NOTIFY_URL:-}
+      APP_URL: ${APP_URL:-}
+      REMIND_DUE_HOURS: ${REMIND_DUE_HOURS:-24}
+      REMIND_EXAM_HOURS: ${REMIND_EXAM_HOURS:-48}
+      REMIND_QUIET: ${REMIND_QUIET:-22-7}
+      LIBRARY_NAMING_CHECK: ${LIBRARY_NAMING_CHECK:-}
+      STATE_DIR: /state
     volumes:
-      # All read-only: the app never writes. The sync fills DATA_DIR.
+      # Read-only: the sync fills DATA_DIR; your files and settings are never changed.
       - ${DATA_DIR:-./data}:/data:ro
       - ${CONFIG_DIR:-./config}:/config:ro
       - ${LIBRARY_DIR:-./library}:/library:ro
       - ${PREVIEWS_DIR:-./previews}:/previews:ro
+      # The one writable folder: marks shared by your devices (done, hidden,
+      # read) and which reminders were sent. Create it as PUID:PGID first; if
+      # it isn't writable, marks stay per browser.
+      - ${STATE_DIR:-./state}:/state
     ports:
       - "${WEB_PORT:-127.0.0.1:3000}:3000"
     <<: *hardening

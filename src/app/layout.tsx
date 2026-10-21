@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { MobileHeader, MobileNav, Sidebar, type NavCourse } from "@/components/nav";
+import { CommandPalette } from "@/components/command-palette";
 import { themeInitScript } from "@/components/theme-toggle";
 import { DemoBanner } from "@/components/data-state";
 import { dataSource } from "@/lib/school";
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
         <MobileNav />
+        <CommandPalette />
       </body>
     </html>
   );

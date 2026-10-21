@@ -152,3 +152,45 @@ describe("webassign links", () => {
     expect(b.url).toBe("https://lms.example.edu/webassign");
   });
 });
+
+describe("grade targets", () => {
+  it("needs for keeping the letter and the next one up (linear)", async () => {
+    const { gradeTargets, targetLine } = await import("./targets");
+    const st = { courseId: "c", percent: 85, letter: "B", gradedWeight: 50, basis: "gradebook" as const, scaleSource: null, scale: { A: 90, B: 80, C: 70 }, sectionWeights: {}, history: [] };
+    // keep B: (80·100 − 85·50)/50 = 75; A: (90·100 − 85·50)/50 = 95
+    expect(gradeTargets(st)).toEqual({ keep: { letter: "B", need: 75 }, next: { letter: "A", need: 95 } });
+    expect(targetLine(st)).toBe("Keep B: 75% · A: 95%");
+    expect(targetLine({ ...st, percent: 100, letter: "A", gradedWeight: 95 })).toBe("A locked in");
+  });
+});
+
+describe("class schedule", () => {
+  it("turns weekly meetings into class events, skipping breaks", async () => {
+    const { scheduleEvents } = await import("./schedule");
+    const courses = [{ id: "m", code: "MATH 2260", name: "Calc", term: null, instructor: null, url: null, startsAt: null, endsAt: null, isActive: true, isClass: true }];
+    const events = scheduleEvents({ courses }, {
+      term: { start: "2026-10-19", end: "2026-10-25", breaks: [["2026-10-22", "2026-10-22"]] },
+      courses: { "MATH 2260": [{ days: "TR", start: "11:35", end: "12:55", location: "Boyd 203", label: "Lecture" }], "NOPE 1": [{ days: "M", start: "9:00", end: "10:00" }] },
+    });
+    expect(events.map((e) => [e.title, e.startsAt, e.endsAt, e.location])).toEqual([["MATH 2260 Lecture", "2026-10-20T15:35:00.000Z", "2026-10-20T16:55:00.000Z", "Boyd 203"]]);
+    expect(events[0].kind).toBe("class");
+  });
+});
+
+describe("reminders", () => {
+  it("picks open work due within a day and exams within two, once each, outside quiet hours", async () => {
+    const { dueReminders, isQuiet } = await import("@/lib/reminders");
+    const course = { id: "c", code: "MATH 2260", name: "Calc", term: null, instructor: null, url: null, startsAt: null, endsAt: null, isActive: true, isClass: true };
+    const a = (id: string, dueAt: string, extra: Partial<Assignment> = {}): Assignment => ({ id, courseId: "c", title: `Item ${id}`, kind: "assignment", dueAt, status: "not_submitted", pointsPossible: null, pointsEarned: null, url: null, ...extra });
+    const s = {
+      version: 1 as const, source: "fixture" as const, generatedAt: "2026-10-21T12:00:00Z", courses: [course], grades: [], announcements: [], standings: [], warnings: [],
+      assignments: [a("soon", "2026-10-22T03:59:00Z"), a("done", "2026-10-22T03:59:00Z", { status: "submitted" }), a("later", "2026-10-25T03:59:00Z"), a("t3", "2026-10-22T15:35:00Z", { kind: "exam", title: "Test 3" })],
+      events: [],
+    };
+    const o = { dueHours: 24, examHours: 48, quiet: [22, 7] as [number, number] };
+    const { alerts, keys } = dueReminders(s, new Date("2026-10-21T16:00:00Z"), new Set(), o);
+    expect(alerts.map((x) => x.title)).toEqual(["Due soon: Item soon", "Exam Thu, Oct 22: Test 3"]);
+    expect(dueReminders(s, new Date("2026-10-21T16:00:00Z"), new Set(keys), o).alerts).toEqual([]);
+    expect([isQuiet(23, o.quiet), isQuiet(3, o.quiet), isQuiet(7, o.quiet), isQuiet(12, [9, 17])]).toEqual([true, true, false, true]);
+  });
+});

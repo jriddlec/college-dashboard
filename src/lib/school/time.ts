@@ -45,6 +45,24 @@ export const formatLongDate = fmt({ weekday: "long", month: "long", day: "numeri
 export const formatDateTime = fmt({ month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 export const hourOfDay = (d: Date) => Number(fmt({ hour: "numeric", hourCycle: "h23" })(d));
 
+/** The instant of wall-clock `hh:mm` on day `key` (YYYY-MM-DD) in the school timezone, as ISO. */
+export function zonedIso(key: string, hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const guess = Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10), h, m);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SCHOOL_TZ,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(guess));
+  const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+  const asZoned = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+  return new Date(guess - (asZoned - guess)).toISOString();
+}
+
 /** Formats a YYYY-MM-DD key without timezone drift. */
 export function formatKey(key: string, opts: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", ...opts }).format(new Date(key + "T12:00:00Z"));

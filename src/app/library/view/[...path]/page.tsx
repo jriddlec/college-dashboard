@@ -37,12 +37,7 @@ function locate(courses: CourseLibrary[], rel: string): { lib: CourseLibrary; m:
 
 export async function generateMetadata({ params }: PageProps<"/library/view/[...path]">): Promise<Metadata> {
   const { path } = await params;
-  const last = path.at(-1) ?? "";
-  let name = last;
-  try {
-    name = decodeURIComponent(last);
-  } catch {}
-  return { title: parseName(name).title };
+  return { title: parseName(path.at(-1) ?? "").title };
 }
 
 export default async function ViewPage({ params }: PageProps<"/library/view/[...path]">) {

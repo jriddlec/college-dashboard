@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { ArrowUpRight, CircleAlert, CircleCheck, CloudOff, FlaskConical, KeyRound } from "lucide-react";
+import { ArrowUpRight, CircleAlert, CircleCheck, CloudOff, FileWarning, FlaskConical, KeyRound } from "lucide-react";
 import { dataDir, dataSource, getSchoolData } from "@/lib/school";
 import { configDir } from "@/lib/config";
-import { libraryDir } from "@/lib/library";
-import { LMS_LABEL, LMS_URL, SIGNIN_HINT, SIGNIN_URL } from "@/lib/settings";
+import { getLibrary, libraryDir } from "@/lib/library";
+import { namingIssues, type NamingIssue } from "@/lib/library/naming";
+import { stateDir } from "@/lib/state";
+import { LIBRARY_NAMING_CHECK, LMS_LABEL, LMS_URL, NOTIFY_URL, SIGNIN_HINT, SIGNIN_URL } from "@/lib/settings";
 import { getSyncStatus } from "@/lib/sync-status";
 import { CopyText } from "@/components/copy-text";
 import { formatDateTime, relative } from "@/lib/school/time";
@@ -26,6 +28,8 @@ export default async function StatusPage() {
     ["Data directory", <code key="d" className="font-mono text-[12px]">{dataDir()}</code>],
     ["Config directory", <code key="c" className="font-mono text-[12px]">{configDir()}</code>],
     ["Library directory", <code key="l" className="font-mono text-[12px]">{libraryDir()}</code>],
+    ["Shared marks", stateDir() ? <code key="s" className="font-mono text-[12px]">{stateDir()}</code> : "Off (kept per browser)"],
+    ["Reminders", NOTIFY_URL ? "On (deadlines due within a day, exams within two days)" : "Off (set NOTIFY_URL)"],
     ["Last sync", s ? `${formatDateTime(s.generatedAt)} (${relative(s.generatedAt, now)})` : "—"],
   ];
   if (sync?.lastFailed && sync.lastAttemptAt) rows.push(["Latest attempt", <span key="a" className="text-warn">Failed {relative(sync.lastAttemptAt, now)}</span>]);
@@ -39,6 +43,9 @@ export default async function StatusPage() {
       ["Announcements", s.announcements.length],
     );
   }
+
+  const library = LIBRARY_NAMING_CHECK ? await getLibrary().catch(() => null) : null;
+  const naming: (NamingIssue & { code: string })[] = library?.ok ? library.courses.flatMap((c) => namingIssues(c).map((i) => ({ ...i, code: c.course.code }))) : [];
 
   const [Icon, tone, headline, detail] =
     result.status === "error"
@@ -103,6 +110,29 @@ export default async function StatusPage() {
           ))}
         </dl>
       </Section>
+
+      {LIBRARY_NAMING_CHECK && library?.ok && (
+        <Section title="Library naming" count={naming.length} className="mt-8">
+          {naming.length === 0 ? (
+            <p className="card flex items-center gap-2 px-4 py-3 text-[13px] text-ok">
+              <CircleCheck className="size-4" /> Every file follows the naming convention.
+            </p>
+          ) : (
+            <ul className="card divide-y divide-border">
+              {naming.slice(0, 60).map((i) => (
+                <li key={i.path} className="flex items-start gap-2 px-4 py-2.5 text-[12.5px]">
+                  <FileWarning className="size-3.5 mt-0.5 shrink-0 text-warn" />
+                  <span className="min-w-0">
+                    <code className="block font-mono text-[11.5px] break-all">{i.path}</code>
+                    <span className="text-muted">{i.problem}</span>
+                  </span>
+                </li>
+              ))}
+              {naming.length > 60 && <li className="px-4 py-2 text-[12px] text-muted">…and {naming.length - 60} more</li>}
+            </ul>
+          )}
+        </Section>
+      )}
 
       {s && s.warnings.length > 0 && (
         <Section title="Warnings" count={s.warnings.length} className="mt-8">

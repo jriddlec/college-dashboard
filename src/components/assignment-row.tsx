@@ -1,8 +1,11 @@
-import { ArrowUpRight, Check } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Check, FolderOpen } from "lucide-react";
 import clsx from "clsx";
 import type { Assignment, Course } from "@/lib/school/types";
 import { urgencyOf, type Urgency } from "@/lib/school/derive";
 import { formatTime, formatWeekdayDate, relative, dayKey } from "@/lib/school/time";
+import { SCORE_TEXT, scoreOf, type ScoreTone } from "@/lib/school/score";
+import type { FolderLink } from "@/lib/library/links";
 import { Badge, CourseTag, hueStyle, type Tone } from "./ui";
 import { MarkDoneToggle } from "./mark-done";
 
@@ -25,6 +28,10 @@ const STATUS_LABEL: Record<Assignment["status"], string> = {
   unknown: "",
 };
 
+const SCORE_BADGE: Record<ScoreTone, Tone> = { bonus: "ok", good: "ok", fair: "neutral", low: "warn", bad: "danger" };
+const SCORE_CHECK: Record<ScoreTone, string> = { bonus: "bg-ok border-ok", good: "bg-ok border-ok", fair: "bg-ok border-ok", low: "bg-warn border-warn", bad: "bg-danger border-danger" };
+
+
 const KIND_LABEL: Record<Assignment["kind"], string | null> = {
   assignment: null,
   quiz: "Quiz",
@@ -40,6 +47,7 @@ export function AssignmentRow({
   showCourse = true,
   dateStyle = "time",
   action,
+  folder,
 }: {
   a: Assignment;
   course: Course | undefined;
@@ -49,6 +57,8 @@ export function AssignmentRow({
   dateStyle?: "time" | "full";
   /** Optional control shown at the end of the row (e.g. hide). */
   action?: React.ReactNode;
+  /** Its folder in the library, when one matches. */
+  folder?: FolderLink | null;
 }) {
   const u = urgencyOf(a, now);
   const badge = URGENCY[u];
@@ -61,10 +71,14 @@ export function AssignmentRow({
     : "No due date";
 
   const Title = a.url ? "a" : "span";
+  const score = done ? scoreOf(a.pointsEarned, a.pointsPossible) : null;
   return (
     <li className="group flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(a.courseId)}>
-      {a.status === "submitted" || a.status === "graded" ? (
-        <span className="mt-0.5 size-4 shrink-0 rounded-full border grid place-items-center bg-ok border-ok text-white" aria-label="Completed">
+      {a.status === "submitted" || a.status === "graded" || a.attended ? (
+        <span
+          className={clsx("mt-0.5 size-4 shrink-0 rounded-full border grid place-items-center text-white", score ? SCORE_CHECK[score.tone] : "bg-ok border-ok")}
+          aria-label={a.attended ? "Done in person" : "Completed"}
+        >
           <Check className="size-2.5" strokeWidth={3.5} />
         </span>
       ) : (
@@ -85,15 +99,27 @@ export function AssignmentRow({
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1">
           {showCourse && <CourseTag course={course} />}
           {KIND_LABEL[a.kind] && <Badge>{KIND_LABEL[a.kind]}</Badge>}
+          {a.source === "syllabus" && (
+            <span title={`From the syllabus; not listed on the LMS yet`}>
+              <Badge>Syllabus</Badge>
+            </span>
+          )}
           {badge && <Badge tone={badge.tone}>{badge.label}{a.dueAt && u !== "today" ? ` · ${relative(a.dueAt, now)}` : ""}</Badge>}
           {u === "today" && a.dueAt && <span className="text-[11.5px] text-warn">{relative(a.dueAt, now)}</span>}
-          {done && <Badge tone="ok">{STATUS_LABEL[a.status] || "Marked done"}</Badge>}
-          {done && a.pointsEarned != null && a.pointsPossible ? (
-            <span className="text-[11.5px] text-muted tabular-nums">
-              {a.pointsEarned}/{a.pointsPossible}
+          {done && <Badge tone={score ? SCORE_BADGE[score.tone] : "ok"}>{STATUS_LABEL[a.status] || (a.attended ? "Done in person" : "Marked done")}</Badge>}
+          {score && (
+            <span className={clsx("text-[11.5px] tabular-nums", SCORE_TEXT[score.tone])}>
+              {score.points} · {score.pct}
+              {score.tone === "bonus" && " · bonus"}
             </span>
-          ) : null}
+          )}
           {u === "past" && <span className="text-[11.5px] text-subtle">Submission status not available</span>}
+          {folder && (
+            <Link href={folder.href} title={`Open ${folder.label} in the library`} className="inline-flex items-center gap-1 text-[11.5px] text-muted hover:text-fg">
+              <FolderOpen className="size-3" />
+              {folder.label}
+            </Link>
+          )}
         </div>
       </div>
     </li>

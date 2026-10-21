@@ -9,7 +9,7 @@ import { addDays, dayKey, daysBetween, formatKey, weekday } from "./time";
 export type Urgency = "done" | "overdue" | "past" | "today" | "soon" | "week" | "later" | "undated";
 
 export function isDone(a: Assignment): boolean {
-  return a.status === "submitted" || a.status === "graded" || !!a.markedDone;
+  return a.status === "submitted" || a.status === "graded" || !!a.markedDone || !!a.attended;
 }
 
 export function urgencyOf(a: Assignment, now: Date): Urgency {
