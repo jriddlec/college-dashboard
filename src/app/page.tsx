@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { CalendarCheck, CircleAlert, Clock, Coffee, MapPin } from "lucide-react";
+import { CalendarCheck, CalendarDays, CircleAlert, Clock, Coffee, GraduationCap, MapPin, PenLine } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
 import { getLinks } from "@/lib/links";
 import { getTranscript } from "@/lib/transcript";
@@ -18,6 +18,7 @@ import { HideOverdueButton, ShowHiddenOverdue } from "@/components/hide-overdue"
 import { HIDDEN_OVERDUE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import { LMS_LABEL } from "@/lib/settings";
 import { readState } from "@/lib/state";
+import type { EventKind } from "@/lib/school/types";
 
 const UPCOMING_LIMIT = 8;
 /** Overdue items older than this fold into an "older" link instead of leading the page. */
@@ -182,20 +183,26 @@ export default async function Home() {
                       folder={folders.get(item.assignment.id)}
                     />
                   ) : (
-                    <li key={item.event.id} className="flex items-start gap-3 px-4 py-3 course-bar" style={hueStyle(item.event.courseId)}>
-                      <span className="mt-0.5 w-4 shrink-0 text-center text-subtle">
-                        <span className="inline-block size-1.5 rounded-full course-dot" />
+                    <li
+                      key={item.event.id}
+                      className={`flex items-start gap-3 px-4 py-3 course-bar ${Date.parse(item.event.endsAt ?? item.event.startsAt) < now.getTime() ? "opacity-55" : ""}`}
+                      style={hueStyle(item.event.courseId)}
+                    >
+                      {/* Meetings get a tinted icon tile so they don't read as checkable assignments. */}
+                      <span className="-mx-1 -mt-0.5 size-6 shrink-0 rounded-md grid place-items-center course-soft">
+                        <EventIcon kind={item.event.kind} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
-                          <span className={`text-[14px] leading-snug ${item.event.kind === "class" ? "text-muted" : "font-medium"}`}>{item.event.title}</span>
+                          <span className="text-[14px] leading-snug font-medium">{item.event.title}</span>
                           <span className="text-[12.5px] text-muted tabular-nums whitespace-nowrap">
                             {item.event.allDay ? "All day" : formatTime(item.event.startsAt)}
                             {!item.event.allDay && item.event.endsAt && `–${formatTime(item.event.endsAt)}`}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1">
-                          {item.event.courseId && <CourseTag course={courses.get(item.event.courseId)} />}
+                          {/* Class titles already lead with the course code. */}
+                          {item.event.courseId && item.event.kind !== "class" && <CourseTag course={courses.get(item.event.courseId)} />}
                           {item.event.kind === "exam" && <Badge tone="accent">Exam</Badge>}
                           {item.event.location && (
                             <span className="inline-flex items-center gap-1 text-[11.5px] text-subtle">
@@ -325,4 +332,9 @@ function OlderOverdue({ count }: { count: number }) {
 async function readHiddenOverdue(): Promise<string[]> {
   const state = await readState();
   return [...new Set([...state.hiddenOverdue, ...parseIdCookie((await cookies()).get(HIDDEN_OVERDUE_COOKIE)?.value)])];
+}
+
+function EventIcon({ kind }: { kind: EventKind }) {
+  const Icon = kind === "class" ? GraduationCap : kind === "exam" ? PenLine : CalendarDays;
+  return <Icon className="size-3.5" />;
 }
