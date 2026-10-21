@@ -46,7 +46,7 @@ describe("materialsOf", () => {
   it("merges formats of one document, HTML first", () => {
     const [m] = materialsOf(dir("N", ["2026-09-24 Guide 3.7.pdf", "2026-09-24 Guide 3.7.html"]).files, ctx);
     expect(m.primary.ext).toBe("html");
-    expect(m.primary.href).toBe("/library/f/N/2026-09-24%20Guide%203.7.html");
+    expect(m.primary.href).toBe("/library/view/N/2026-09-24%20Guide%203.7.html");
     expect(m.alternates.map((a) => a.ext)).toEqual(["pdf"]);
   });
   it("opens Office files as their converted PDF when one exists", () => {

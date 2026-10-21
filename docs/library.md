@@ -77,7 +77,8 @@ The unit with the most recent dated material opens by default.
 
 | Format | Opens as |
 |---|---|
-| HTML, PDF | In the browser as-is (study guides keep their own styling, math and scripts) |
+| HTML | Embedded in the viewer as-is (study guides keep their own styling, math and scripts), with an "Open in new tab" button |
+| PDF | In the browser as-is |
 | Word, PowerPoint, Excel, ODF, RTF | The PDF made by the converter (below), or a download |
 | Markdown, text, CSV, code | The built-in viewer (Markdown rendered, code highlighted) |
 | Images, audio, video | The built-in viewer (video and audio stream with seeking) |

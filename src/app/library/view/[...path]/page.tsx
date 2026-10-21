@@ -10,6 +10,7 @@ import { KIND_META, formatSize, shortDate } from "@/components/library/material"
 import { Badge, EmptyState, buttonClass, hueVars } from "@/components/ui";
 
 const MAX_TEXT = 2_000_000;
+const HTML = ["html", "htm"];
 const IMAGE = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const VIDEO = ["mp4", "webm", "mov"];
 const AUDIO = ["mp3", "m4a", "wav", "ogg"];
@@ -67,7 +68,9 @@ export default async function ViewPage({ params }: PageProps<"/library/view/[...
   const isText = ext === "md" || ext === "txt" || ext === "csv" || isCode(ext);
 
   let body: React.ReactNode;
-  if (isText && st.size <= MAX_TEXT) {
+  if (HTML.includes(ext)) {
+    body = <iframe src={raw} title={title} className="card w-full h-[calc(100dvh-12rem)] min-h-[480px] bg-white" />;
+  } else if (isText && st.size <= MAX_TEXT) {
     const src = await fs.readFile(target.abs, "utf8");
     if (ext === "md") {
       body = <article className="card px-5 md:px-8 py-6 prose-study" dangerouslySetInnerHTML={{ __html: markdown(src) }} />;
@@ -138,6 +141,11 @@ export default async function ViewPage({ params }: PageProps<"/library/view/[...
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {HTML.includes(ext) && (
+            <a href={raw} target="_blank" rel="noreferrer" className={buttonClass}>
+              <ExternalLink className="size-3.5" /> Open in new tab
+            </a>
+          )}
           {others.map((f) => (
             <a key={f.path} href={f.href} target="_blank" rel="noreferrer" className={buttonClass}>
               <ExternalLink className="size-3.5" /> {f.ext.toUpperCase()}
