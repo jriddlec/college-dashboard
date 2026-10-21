@@ -37,12 +37,13 @@ function locate(courses: CourseLibrary[], rel: string): { lib: CourseLibrary; m:
 
 export async function generateMetadata({ params }: PageProps<"/library/view/[...path]">): Promise<Metadata> {
   const { path } = await params;
-  return { title: parseName(path.at(-1) ?? "").title };
+  return { title: parseName(decodeSegment(path.at(-1) ?? "")).title };
 }
 
 export default async function ViewPage({ params }: PageProps<"/library/view/[...path]">) {
   const { path: segments } = await params;
-  const target = safeResolve(libraryDir(), segments);
+  // Page params arrive URL-encoded (route handlers get them decoded).
+  const target = safeResolve(libraryDir(), segments.map(decodeSegment));
   if (!target) notFound();
   let st;
   try {
@@ -154,4 +155,12 @@ export default async function ViewPage({ params }: PageProps<"/library/view/[...
       {body}
     </div>
   );
+}
+
+function decodeSegment(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }
