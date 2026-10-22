@@ -61,8 +61,34 @@ cat d2l-auth/status.json
 
 Courses, due and overdue work, calendar, announcements (per course), final
 grades, and per course: assignments (dropbox folders), quizzes, grades, gradebook
-setup (categories, weights, drops), and your own submissions. Steps that fail
-are listed on the **Data status** page; the rest still sync.
+setup (categories, weights, drops), your own submissions, and the Content
+tree (unit titles, no files). Steps that fail are listed on the **Data status**
+page; the rest still sync.
+
+## Course content files
+
+The **Course content** section of **Data status** fetches a class's Content
+files (lecture pages, PDFs, code) into the library on request: pick a class
+and a unit, or the whole course, and press **Fetch files**. It needs
+`STATE_DIR`. d2l-sync picks the request up within 10 seconds and saves the
+files to `<CODE> Course Content/` in `LIBRARY_DIR`, one folder per unit as
+the course names them:
+
+```
+CSCI1301 Course Content/
+  Week 9 - L08, P3/Appendix/2026-10-13/
+    2026-10-13 Part 1 - One Array, Several Ages.html
+    2026-10-13 Part 2 - Traversal and Counting.html
+  Week 4 - L03, P1/Appendix/
+    BooleanFun.java
+```
+
+Files are dated (from their name, their folder, or when they were last
+changed) and titled from the web page's own title, so they sort by date in
+the library. Code and data files keep their names. A hidden
+`.d2l-content.json` in that folder remembers what was fetched: fetching again
+downloads only new or changed files. Links, quizzes and dropboxes are skipped.
+This is the only place d2l-sync writes in the library.
 
 ## Limits
 

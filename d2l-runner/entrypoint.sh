@@ -50,8 +50,9 @@ case "${1:-session}" in
     export D2L_NO_AUTO_LOGIN=1
     need_writable /data "DATA_DIR" "data"
     mkdir -p /data/d2l
-    # Every minute: publish the session state for the web app (/data/d2l/session.json;
-    # the app can't read ~/.d2l), and sync right away when a sign-in brings it back.
+    # Every 10 seconds: publish the session state for the web app (/data/d2l/session.json;
+    # the app can't read ~/.d2l), sync right away when a sign-in brings it back,
+    # and run content fetches queued on /status (/state/content-requests).
     next=0
     last_state=""
     while :; do
@@ -71,7 +72,10 @@ case "${1:-session}" in
           next=$(( $(date +%s) + ${SYNC_INTERVAL:-1800} ))
         fi
       fi
-      sleep 60
+      if [ -f "$D2L_DIR/token.json" ] && [ -n "$(ls /state/content-requests/*.json 2>/dev/null)" ]; then
+        python3 /opt/d2l-runner/d2l_sync.py --dest /data --content /state --library /library || true
+      fi
+      sleep 10
     done
     ;;
   *)

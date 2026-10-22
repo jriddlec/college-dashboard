@@ -1,3 +1,4 @@
+import { sameOrigin } from "@/lib/same-origin";
 import { CLIENT_KEYS, readState, setIds, stateDir, updateState, type StateKey } from "@/lib/state";
 
 /**
@@ -9,22 +10,6 @@ export async function GET() {
   if (!stateDir()) return Response.json({ enabled: false }, { status: 404 });
   const s = await readState();
   return Response.json({ enabled: true, markedDone: s.markedDone, hiddenOverdue: s.hiddenOverdue, readAnnouncements: s.readAnnouncements });
-}
-
-/** Same-origin requests only: no cross-site page can change your marks. */
-function sameOrigin(req: Request): boolean {
-  const site = req.headers.get("sec-fetch-site");
-  if (site && site !== "same-origin" && site !== "none") return false;
-  const origin = req.headers.get("origin");
-  if (origin) {
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    try {
-      if (new URL(origin).host !== host) return false;
-    } catch {
-      return false;
-    }
-  }
-  return true;
 }
 
 export async function POST(req: Request) {

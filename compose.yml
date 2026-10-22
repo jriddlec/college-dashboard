@@ -103,6 +103,10 @@ services:
     volumes:
       - ${D2L_AUTH_DIR:-./d2l-auth}:/home/d2l/.d2l:ro
       - ${DATA_DIR:-./data}:/data
+      # Content fetches from /status: requests and progress live in STATE_DIR;
+      # files go to "<CODE> Course Content/" in the library (nothing else is touched).
+      - ${STATE_DIR:-./state}:/state
+      - ${LIBRARY_DIR:-./library}:/library
     depends_on:
       - d2l-session
     <<: *hardening

@@ -2,7 +2,9 @@
 
 The library shows your own class material (notes, study guides, slides,
 classwork) next to your LMS data, one tab per class. It reads the folder in
-`LIBRARY_DIR` and never writes to it. `examples/library` has a small example
+`LIBRARY_DIR` and never writes to it (with Brightspace, d2l-sync can fetch a
+class's Content files into `<CODE> Course Content/` on request; see
+[d2l.md](d2l.md#course-content-files)). `examples/library` has a small example
 of each layout below.
 
 ## Which folders belong to a class

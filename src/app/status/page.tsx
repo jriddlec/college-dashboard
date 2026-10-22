@@ -7,6 +7,8 @@ import { namingIssues, type NamingIssue } from "@/lib/library/naming";
 import { stateDir } from "@/lib/state";
 import { LIBRARY_NAMING_CHECK, LMS_LABEL, LMS_URL, NOTIFY_URL, SIGNIN_HINT, SIGNIN_URL } from "@/lib/settings";
 import { getSyncStatus } from "@/lib/sync-status";
+import { contentCourses, contentFetchEnabled, contentJobs } from "@/lib/content-fetch";
+import { ContentFetch } from "@/components/content-fetch";
 import { CopyText } from "@/components/copy-text";
 import { formatDateTime, relative } from "@/lib/school/time";
 import { PageHeader, Section } from "@/components/ui";
@@ -43,6 +45,9 @@ export default async function StatusPage() {
       ["Announcements", s.announcements.length],
     );
   }
+
+  const contentCourseList = s && contentFetchEnabled() ? await contentCourses(s.courses) : [];
+  const jobs = contentCourseList.length ? await contentJobs() : [];
 
   const library = LIBRARY_NAMING_CHECK ? await getLibrary().catch(() => null) : null;
   const naming: (NamingIssue & { code: string })[] = library?.ok ? library.courses.flatMap((c) => namingIssues(c).map((i) => ({ ...i, code: c.course.code }))) : [];
@@ -110,6 +115,12 @@ export default async function StatusPage() {
           ))}
         </dl>
       </Section>
+
+      {contentCourseList.length > 0 && (
+        <Section title="Course content" className="mt-8">
+          <ContentFetch courses={contentCourseList} jobs={jobs} />
+        </Section>
+      )}
 
       {LIBRARY_NAMING_CHECK && library?.ok && (
         <Section title="Library naming" count={naming.length} className="mt-8">

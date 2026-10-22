@@ -127,6 +127,13 @@ def collect(runner: Runner, root: Path, days: int) -> bool:
             collect_submissions(runner, client, root / "courses" / cid / "submissions.json", cid, folders)
         if client is not None:
             collect_gradebook(runner, client, root / "courses" / cid, cid)
+            # The course's Content tree: what /status offers to fetch into the library.
+            try:
+                (root / "courses" / cid / "content-toc.json").write_text(json.dumps(client.content_toc(cid)), encoding="utf-8")
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ not in ("ForbiddenError", "NotFoundError"):
+                    runner.failures.append(f"content {cid}")
+                    log(f"content {cid} failed: {type(e).__name__}: {str(e)[:200]}")
     (root / "manifest.json").write_text(
         json.dumps({"fetchedAt": now_iso(), "courses": len(ids), "failures": runner.failures}, indent=2), encoding="utf-8"
     )
@@ -185,6 +192,205 @@ def collect_gradebook(runner: Runner, client, out: Path, cid: str) -> None:
             if type(e).__name__ not in ("ForbiddenError", "NotFoundError"):
                 runner.failures.append(f"{name} {cid}")
                 log(f"{name} {cid} failed: {type(e).__name__}: {str(e)[:200]}")
+
+
+# --- content fetch ----------------------------------------------------------
+#
+# /status queues requests as $STATE_DIR/content-requests/<id>.json
+# ({id, courseId, moduleId|null, requestedAt}); the sync loop runs them with
+# --content and records progress in $STATE_DIR/content-jobs.json. Files land in
+# "<CODE> Course Content/<module>/<submodule>/YYYY-MM-DD <Title>.<ext>" so the
+# library shows them as a dated folder tree. A hidden index in that folder
+# (topic id → file) makes re-fetches update changed files instead of copying them.
+
+CONTENT_FOLDER = "Course Content"
+CONTENT_INDEX = ".d2l-content.json"
+JOBS_KEEP = 20
+CODE_EXTS = {".java", ".py", ".c", ".cpp", ".h", ".js", ".ts", ".txt", ".csv", ".json", ".xml", ".sql", ".r", ".m", ".zip", ".jar"}
+DATE_RE = re.compile(r"(20\d\d)-(\d\d)-(\d\d)")
+
+
+def safe_name(s: str, limit: int = 120) -> str:
+    s = re.sub(r"[\\/:*?\"<>|\x00-\x1f]", " - ", s)
+    s = re.sub(r"\s+", " ", re.sub(r"(\s-\s)+", " - ", s)).strip(" .-")
+    return s[:limit].rstrip(" .-") or "Untitled"
+
+
+def course_code(course: dict) -> str | None:
+    ou = course.get("OrgUnit", {})
+    m = re.search(r"[A-Z]{3,4}\s?\d{4}[A-Z]?", ou.get("Code") or ou.get("Name") or "")
+    return m.group(0).replace(" ", "") if m else None
+
+
+def content_root(library: Path, code: str) -> Path:
+    """The class's content folder, using the prefix its folders already use ("CSCI1301" or "CSCI 1301")."""
+    spaced = re.sub(r"^([A-Z]+)(\d)", r"\1 \2", code)
+    for prefix in (code, spaced):
+        if any(p.is_dir() and (p.name == prefix or p.name.startswith(prefix + " ")) for p in library.iterdir()):
+            return library / f"{prefix} {CONTENT_FOLDER}"
+    return library / f"{code} {CONTENT_FOLDER}"
+
+
+def html_title(data: bytes) -> str | None:
+    m = re.search(rb"<title[^>]*>(.*?)</title>", data[:20000], re.S | re.I)
+    if not m:
+        return None
+    import html
+
+    t = html.unescape(m.group(1).decode("utf-8", "replace")).strip()
+    return re.sub(r"\s+", " ", t) or None
+
+
+def tidy_title(title: str, code: str) -> str:
+    """'CSCI 1301: 2026-10-13-TUE (Cotterell) Part 8: Enforcing Preconditions' → 'Part 8 - Enforcing Preconditions';
+    'cs1301-2026-10-13-TUE-part1' → 'part1'. Course codes, dates and weekdays are dropped: the date leads the name."""
+    letters, digits = re.match(r"([A-Z]+)(\d+)", code).groups()
+    t = re.sub(rf"^\s*(?:{letters}\s?{digits}|{letters.lower()}\s?{digits})\s*[:\-–]?\s*", "", title, flags=re.I)
+    t = re.sub(r"^\s*20\d\d-\d\d-\d\d(?:-(?:MON|TUE|WED|THU|FRI|SAT|SUN))?\s*(?:\([^)]*\))?\s*[:\-–]?\s*", "", t, flags=re.I)
+    # Site-name suffixes: "… - CSCI 1302", "… | CSCI 1301".
+    t = re.sub(r"\s*[-–|]\s*[A-Z]{2,4}\s?\d{4}[A-Z]?\s*$", "", t).strip()
+    return safe_name(t) if t else "Notes"
+
+
+def topic_date(topic: dict, folders: list[str]) -> str:
+    for s in (topic.get("Title") or "", topic.get("Url") or "", *reversed(folders)):
+        m = DATE_RE.search(s)
+        if m:
+            return m.group(0)
+    return (topic.get("LastModifiedDate") or now_iso())[:10]
+
+
+def walk_toc(modules: list, path: list[str]):
+    """(folder titles, topic) for every downloadable file topic, depth first."""
+    for m in modules or []:
+        if m.get("IsHidden"):
+            continue
+        here = [*path, safe_name(m.get("Title") or "Module", 80)]
+        for t in m.get("Topics") or []:
+            if t.get("TypeIdentifier") == "File" and not t.get("IsHidden") and not t.get("IsBroken"):
+                yield here, t
+        yield from walk_toc(m.get("Modules") or [], here)
+
+
+def find_module(modules: list, module_id: str, path: list[str]):
+    for m in modules or []:
+        here = [*path, safe_name(m.get("Title") or "Module", 80)]
+        if str(m.get("ModuleId")) == module_id:
+            return m, path
+        found = find_module(m.get("Modules") or [], module_id, here)
+        if found:
+            return found
+    return None
+
+
+def fetch_content(client, library: Path, cid: str, code: str, module_id: str | None, progress) -> dict:
+    toc = client.content_toc(cid)
+    modules = toc.get("Modules") or []
+    if module_id:
+        found = find_module(modules, module_id, [])
+        if not found:
+            raise RuntimeError("That unit is no longer in the course content.")
+        mod, parents = found
+        topics = list(walk_toc([mod], parents))
+    else:
+        topics = list(walk_toc(modules, []))
+    root = content_root(library, code)
+    root.mkdir(parents=True, exist_ok=True)
+    index_file = root / CONTENT_INDEX
+    index = _load(index_file) or {}
+    counts = {"total": len(topics), "added": 0, "updated": 0, "skipped": 0, "failed": 0}
+    for n, (folders, t) in enumerate(topics, 1):
+        tid = str(t.get("TopicId"))
+        modified = t.get("LastModifiedDate")
+        prev = index.get(tid)
+        if prev and prev.get("modified") == modified and (root / prev["path"]).exists():
+            counts["skipped"] += 1
+            continue
+        try:
+            data = client.content_topic_file(cid, tid).content
+        except Exception as e:  # noqa: BLE001
+            counts["failed"] += 1
+            log(f"content {cid}/{tid} failed: {type(e).__name__}: {str(e)[:200]}")
+            continue
+        url_name = (t.get("Url") or "").rsplit("/", 1)[-1]
+        ext = Path(url_name).suffix.lower() or ".bin"
+        if ext in CODE_EXTS:
+            # Code and data keep the names the course gives them.
+            name = safe_name(re.sub(r" - Copy( \(\d+\))?(?=\.)", "", url_name), 160)
+        else:
+            date = topic_date(t, folders)
+            title = (html_title(data) if ext in (".html", ".htm") else None) or t.get("Title") or url_name
+            name = f"{date} {tidy_title(title, code)}{ext}"
+        rel = Path(*folders, name)
+        dest = root / rel
+        # Two topics with the same name in one folder: keep both.
+        owner = next((k for k, v in index.items() if v.get("path") == rel.as_posix()), None)
+        if owner not in (None, tid):
+            rel = rel.with_name(f"{rel.stem} ({tid}){rel.suffix}")
+            dest = root / rel
+        if prev and prev.get("path") != rel.as_posix():
+            old = root / prev["path"]
+            if old.exists():
+                old.unlink()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp = dest.with_name(f".{dest.name}.part")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
+        counts["updated" if prev else "added"] += 1
+        index[tid] = {"path": rel.as_posix(), "modified": modified, "title": t.get("Title")}
+        if n % 5 == 0:
+            progress(counts)
+    tmp = index_file.with_name(CONTENT_INDEX + ".new")
+    tmp.write_text(json.dumps(index, indent=1), encoding="utf-8")
+    os.replace(tmp, index_file)
+    counts["folder"] = root.name
+    return counts
+
+
+def run_content_requests(state: Path, library: Path, data: Path) -> int:
+    """Runs every queued /status content request, oldest first."""
+    req_dir = state / "content-requests"
+    reqs = sorted(req_dir.glob("*.json")) if req_dir.is_dir() else []
+    if not reqs:
+        return 0
+    jobs_file = state / "content-jobs.json"
+
+    def save(job: dict) -> None:
+        jobs = [j for j in (_load(jobs_file) or []) if isinstance(j, dict) and j.get("id") != job["id"]]
+        jobs = [job, *jobs][:JOBS_KEEP]
+        tmp = jobs_file.with_name("content-jobs.json.new")
+        tmp.write_text(json.dumps(jobs, indent=1), encoding="utf-8")
+        os.replace(tmp, jobs_file)
+
+    client = submissions_client()
+    courses = _load(data / "d2l" / "current" / "courses.json")
+    items = courses if isinstance(courses, list) else next((v for v in (courses or {}).values() if isinstance(v, list)), [])
+    codes = {str(c.get("OrgUnit", {}).get("Id")): course_code(c) for c in items}
+    for f in reqs:
+        req = _load(f)
+        f.unlink(missing_ok=True)
+        if not isinstance(req, dict) or not re.fullmatch(r"[0-9A-Za-z_-]{1,64}", str(req.get("id", ""))):
+            continue
+        cid = str(req.get("courseId", ""))
+        mid = req.get("moduleId")
+        mid = str(mid) if mid not in (None, "") else None
+        job = {**req, "state": "running", "startedAt": now_iso()}
+        save(job)
+        try:
+            if client is None:
+                raise RuntimeError("Can't reach Brightspace (sign in again on Data status).")
+            code = codes.get(cid)
+            if not code or not re.fullmatch(r"\d+", cid) or (mid and not re.fullmatch(r"\d+", mid)):
+                raise RuntimeError("Unknown course.")
+            log(f"content fetch {cid} {mid or 'whole course'}")
+            result = fetch_content(client, library, cid, code, mid, lambda c: save({**job, **c}))
+            job = {**job, **result, "state": "done", "finishedAt": now_iso()}
+            log(f"content fetch {cid}: {result}")
+        except Exception as e:  # noqa: BLE001
+            job = {**job, "state": "failed", "error": str(e)[:300], "finishedAt": now_iso()}
+            log(f"content fetch {cid} failed: {type(e).__name__}: {str(e)[:200]}")
+        save(job)
+    return 0
 
 
 # --- alerts ---------------------------------------------------------------
@@ -331,10 +537,16 @@ def main() -> int:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--push", metavar="HOST", help="ssh host to push to (e.g. myserver)")
     g.add_argument("--dest", metavar="DIR", type=Path, help="local data dir")
+    ap.add_argument("--content", metavar="STATE_DIR", type=Path, help="with --dest: run queued content fetches instead of a sync")
+    ap.add_argument("--library", metavar="DIR", type=Path, default=Path("/library"), help="library to fetch content into (default /library)")
     ap.add_argument("--remote-dir", default=REMOTE_DATA, help=f"data dir on the push host (default {REMOTE_DATA})")
     ap.add_argument("--d2l", default=shutil.which("d2l"), help="path to the d2l executable")
     ap.add_argument("--days", type=int, default=120, help="look-ahead for due/calendar (default 120)")
     args = ap.parse_args()
+    if args.content:
+        if not args.dest:
+            ap.error("--content needs --dest")
+        return run_content_requests(args.content, args.library, args.dest)
     if not args.d2l:
         log("d2l-cli not found on PATH; pass --d2l")
         return 1
