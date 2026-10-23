@@ -8,7 +8,7 @@ import { getLibrary, libraryDir, safeResolve } from "@/lib/library";
 import { highlight, isCode, markdown } from "@/lib/library/render";
 import { KIND_META, formatSize, shortDate } from "@/components/library/material";
 import { Badge, EmptyState, buttonClass, hueVars } from "@/components/ui";
-import { PdfFrame } from "@/components/library/pdf-frame";
+import { PdfView } from "@/components/library/pdf-view";
 
 const MAX_TEXT = 2_000_000;
 const HTML = ["html", "htm"];
@@ -68,7 +68,7 @@ export default async function ViewPage({ params }: PageProps<"/library/view/[...
   if (HTML.includes(ext)) {
     body = <iframe src={raw} title={title} className="card w-full h-[calc(100dvh-12rem)] min-h-[480px] bg-white" />;
   } else if (ext === "pdf") {
-    body = <PdfFrame src={raw} title={title} />;
+    body = <PdfView src={raw} title={title} />;
   } else if (isText && st.size <= MAX_TEXT) {
     const src = await fs.readFile(target.abs, "utf8");
     if (ext === "md") {
