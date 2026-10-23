@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import "pdfjs-dist/web/pdf_viewer.css";
+import { FullScreenButton, useFullScreen } from "./full-screen";
 
 const KEY = "pdf-dark";
 const listeners = new Set<() => void>();
@@ -71,6 +72,7 @@ async function resolveOutline(
  */
 export function PdfFrame({ src, title }: { src: string; title: string }) {
   const invert = useSyncExternalStore(subscribe, readPref, () => true);
+  const [full, setFull] = useFullScreen();
   const toggleInvert = () => {
     try {
       localStorage.setItem(KEY, invert ? "0" : "1");
@@ -133,7 +135,9 @@ export function PdfFrame({ src, title }: { src: string; title: string }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [doc]);
-  const base = sizes[0] ? Math.min(width - 32, 900) / sizes[0].w : 1;
+  const base = sizes[0]
+    ? Math.min(width - 48, full ? 1200 : 900) / sizes[0].w
+    : 1;
   const scale = Math.max(0.1, base * zoom);
 
   // Current page: the one nearest the top of the view.
@@ -169,7 +173,13 @@ export function PdfFrame({ src, title }: { src: string; title: string }) {
   const btn =
     "inline-flex items-center justify-center size-7 rounded-md text-muted hover:text-fg hover:bg-surface-2 disabled:opacity-40";
   return (
-    <div className="card overflow-hidden flex flex-col h-[calc(100dvh-10rem)] min-h-[480px]">
+    <div
+      className={
+        full
+          ? "fixed inset-0 md:left-56 z-40 flex flex-col bg-surface"
+          : "card overflow-hidden flex flex-col h-[calc(100dvh-10rem)] min-h-[480px]"
+      }
+    >
       <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border text-[12.5px] text-muted">
         {outline.length > 0 && (
           <button
@@ -222,6 +232,7 @@ export function PdfFrame({ src, title }: { src: string; title: string }) {
           >
             {invert ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
+          <FullScreenButton full={full} setFull={setFull} className={btn} />
         </div>
       </div>
       <div className="flex flex-1 min-h-0">

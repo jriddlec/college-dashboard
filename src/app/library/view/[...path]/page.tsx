@@ -9,6 +9,7 @@ import { highlight, isCode, markdown } from "@/lib/library/render";
 import { KIND_META, formatSize, shortDate } from "@/components/library/material";
 import { Badge, EmptyState, buttonClass, hueVars } from "@/components/ui";
 import { PdfView } from "@/components/library/pdf-view";
+import { HtmlFrame } from "@/components/library/full-screen";
 
 const MAX_TEXT = 2_000_000;
 const HTML = ["html", "htm"];
@@ -66,7 +67,7 @@ export default async function ViewPage({ params }: PageProps<"/library/view/[...
 
   let body: React.ReactNode;
   if (HTML.includes(ext)) {
-    body = <iframe src={raw} title={title} className="card w-full h-[calc(100dvh-12rem)] min-h-[480px] bg-white" />;
+    body = <HtmlFrame src={raw} title={title} />;
   } else if (ext === "pdf") {
     body = <PdfView src={raw} title={title} />;
   } else if (isText && st.size <= MAX_TEXT) {
