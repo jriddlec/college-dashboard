@@ -169,9 +169,9 @@ const EXT_RANK: Record<string, number> = {
   mp4: 4, webm: 4, mov: 4, mp3: 4, m4a: 4, wav: 4, png: 4, jpg: 4, jpeg: 4, gif: 4, webp: 4, svg: 4,
 };
 const OFFICE = new Set(["docx", "doc", "pptx", "ppt", "xlsx", "xls", "odt", "odp", "ods", "rtf"]);
-const RAW = new Set(["pdf"]);
+const RAW = new Set<string>();
 const VIEWER = new Set([
-  "html", "htm", "md", "txt", "java", "xml", "json", "csv", "py", "c", "h", "cpp", "js", "ts", "css", "sql", "sh",
+  "html", "htm", "pdf", "md", "txt", "java", "xml", "json", "csv", "py", "c", "h", "cpp", "js", "ts", "css", "sql", "sh",
   "png", "jpg", "jpeg", "gif", "webp", "svg", "mp4", "webm", "mov", "mp3", "m4a", "wav", "ogg",
 ]);
 const IGNORED_FILES = /^(\.|~\$)|^(thumbs\.db|desktop\.ini)$/i;
