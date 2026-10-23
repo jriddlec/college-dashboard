@@ -1,28 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
 const KEY = "pdf-dark";
+const listeners = new Set<() => void>();
+function subscribe(l: () => void) {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+function readPref(): boolean {
+  try {
+    return localStorage.getItem(KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
 
 /**
  * A PDF in the browser's own viewer. In the dark theme the page is inverted
  * (hue-rotated back so colors stay close), unless turned off; the choice is remembered.
  */
 export function PdfFrame({ src, title }: { src: string; title: string }) {
-  const [invert, setInvert] = useState(true);
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(KEY) === "0") setInvert(false);
-    } catch {}
-  }, []);
+  const invert = useSyncExternalStore(subscribe, readPref, () => true);
   const toggle = () => {
-    setInvert((v) => {
-      try {
-        localStorage.setItem(KEY, v ? "0" : "1");
-      } catch {}
-      return !v;
-    });
+    try {
+      localStorage.setItem(KEY, invert ? "0" : "1");
+    } catch {}
+    listeners.forEach((l) => l());
   };
   return (
     <div>
