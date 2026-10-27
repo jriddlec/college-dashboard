@@ -331,6 +331,9 @@ describe("grade estimates", () => {
     expect(s).toMatchObject({ basis: "syllabus", percent: 63.1, letter: "D", scaleSource: "test" });
     // Review 10 + RQ 10 (no count: all created items graded) + Tests 50·(1/3)
     expect(s.gradedWeight).toBe(37);
+    // QC1 has no gradebook category, so the table files it under its syllabus one.
+    expect(s.itemSections).toEqual({ QC1: "Review" });
+    expect(s.sectionWeights).toMatchObject({ Review: 10, Tests: 50, "Reading Quizzes": 10 });
   });
 });
 

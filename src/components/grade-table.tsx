@@ -16,8 +16,10 @@ const TYPES: [string, RegExp][] = [
   ["Participation", /\b(participation|attendance|clicker|iclicker|tophat)\b/i],
 ];
 
-function typeOf(g: Grade): string {
+/** Gradebook category, else the syllabus category from `sections`, else a guess from the name. */
+function typeOfIn(g: Grade, sections?: Record<string, string>): string {
   if (g.category) return g.category;
+  if (sections?.[g.name]) return sections[g.name];
   return TYPES.find(([, re]) => re.test(g.name))?.[0] ?? "Other";
 }
 
@@ -31,15 +33,16 @@ function typeRank(t: string): number {
 type SortKey = "type" | "recent" | "score";
 const time = (g: Grade) => Date.parse(g.postedAt ?? "0") || 0;
 
-export function GradeTable({ items, weights }: { items: Grade[]; weights?: Record<string, number> }) {
+export function GradeTable({ items, weights, sections }: { items: Grade[]; weights?: Record<string, number>; sections?: Record<string, string> }) {
   const [sort, setSort] = useState<SortKey>("type");
   const [filter, setFilter] = useState<string | null>(null);
+  const typeOf = useMemo(() => (g: Grade) => typeOfIn(g, sections), [sections]);
 
   const types = useMemo(() => {
     const counts = new Map<string, number>();
     for (const g of items) counts.set(typeOf(g), (counts.get(typeOf(g)) ?? 0) + 1);
     return [...counts].sort(([a], [b]) => typeRank(a) - typeRank(b) || a.localeCompare(b));
-  }, [items]);
+  }, [items, typeOf]);
 
   const rows = useMemo(() => {
     const shown = filter ? items.filter((g) => typeOf(g) === filter) : items;
@@ -51,7 +54,7 @@ export function GradeTable({ items, weights }: { items: Grade[]; weights?: Recor
           ? (a, b) => (b.percent ?? -1) - (a.percent ?? -1) || byRecent(a, b)
           : (a, b) => typeRank(typeOf(a)) - typeRank(typeOf(b)) || typeOf(a).localeCompare(typeOf(b)) || byRecent(a, b),
     );
-  }, [items, filter, sort]);
+  }, [items, filter, sort, typeOf]);
 
   /** Per-type average: points earned / possible when every graded item has points, else the mean of percents. */
   const averages = useMemo(() => {
@@ -66,7 +69,7 @@ export function GradeTable({ items, weights }: { items: Grade[]; weights?: Recor
       out.set(t, Math.round(avg * 10) / 10);
     }
     return out;
-  }, [items, types]);
+  }, [items, types, typeOf]);
 
   const chip = (active: boolean) =>
     `rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${active ? "border-border-strong bg-surface-2 text-fg" : "border-border text-muted hover:text-fg"}`;

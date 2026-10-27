@@ -181,6 +181,16 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
   }
   const sectionWeights: Record<string, number> = {};
   for (const [name, w] of seenW) if (w != null && w > 0) sectionWeights[name] = round1(w);
+  // Items outside any gradebook category take their syllabus category's name and weight.
+  const syllabusNames = new Map(syllabus?.categories?.map((c, n) => [`syllabus:${n}`, c.name]) ?? []);
+  const itemSections: Record<string, string> = {};
+  for (const i of book.items) {
+    const name = !i.categoryName && i.categoryId ? syllabusNames.get(i.categoryId) : undefined;
+    if (!name) continue;
+    itemSections[i.name] = name;
+    const w = catWeight.get(i.categoryId!);
+    if (w) sectionWeights[name] = round1(w);
+  }
   return {
     courseId,
     whatIf: whatIfModel(book, syllabus, bonusPoints(raw, syllabus, isGraded)),
@@ -192,6 +202,7 @@ export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syll
     scale: syllabus?.scale ?? DEFAULT_SCALE,
     history: [...byDay.values()],
     sectionWeights,
+    itemSections,
   };
 }
 
