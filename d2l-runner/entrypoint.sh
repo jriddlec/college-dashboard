@@ -5,8 +5,10 @@
 #            on a server, tunnel it: `ssh -L 6080:127.0.0.1:6080 <server>`).
 #            keeper.py keeps the LMS session alive and keeps
 #            ~/.d2l/token.json fresh.
-#   sync     every SYNC_INTERVAL seconds, run d2l_sync.py --dest /data with the
-#            session's token (~/.d2l mounted read-only). Never opens a browser.
+#   sync     every SYNC_INTERVAL seconds (or syncInterval in /state/settings.json,
+#            set on /settings), run d2l_sync.py --dest /data with the session's
+#            token (~/.d2l mounted read-only). /state/sync-now (the "Sync now"
+#            button) starts one right away. Never opens a browser.
 #   *        run the given command (e.g. `d2l token`, `d2l --json courses`).
 set -eu
 
@@ -62,6 +64,7 @@ case "${1:-session}" in
         state=$(sed -n 's/.*"state": *"\([a-z_]*\)".*/\1/p' "$D2L_DIR/status.json")
       fi
       if [ "$state" = "ok" ] && [ -n "$last_state" ] && [ "$last_state" != "ok" ]; then next=0; fi
+      if [ -f /state/sync-now ]; then rm -f /state/sync-now; next=0; fi
       last_state=$state
       now=$(date +%s)
       if [ "$now" -ge "$next" ]; then
@@ -69,7 +72,8 @@ case "${1:-session}" in
           echo "$(date -u +%FT%T) d2l-sync: no session yet; waiting for d2l-session (sign in at http://localhost:6080/vnc.html)"
         else
           python3 /opt/d2l-runner/d2l_sync.py --dest /data || true
-          next=$(( $(date +%s) + ${SYNC_INTERVAL:-1800} ))
+          interval=$(sed -n 's/.*"syncInterval": *\([0-9][0-9]*\).*/\1/p' /state/settings.json 2>/dev/null | head -1)
+          next=$(( $(date +%s) + ${interval:-${SYNC_INTERVAL:-1800}} ))
         fi
       fi
       if [ -f "$D2L_DIR/token.json" ] && [ -n "$(ls /state/content-requests/*.json 2>/dev/null)" ]; then

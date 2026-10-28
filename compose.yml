@@ -84,6 +84,8 @@ services:
     volumes:
       # Session cookies and the token: keep private (mode 700), never share.
       - ${D2L_AUTH_DIR:-./d2l-auth}:/home/d2l/.d2l
+      # Alert settings from /settings (settings.json), read-only.
+      - ${STATE_DIR:-./state}:/state:ro
     security_opt:
       - no-new-privileges:true
 

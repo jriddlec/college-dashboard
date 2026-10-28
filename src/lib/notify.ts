@@ -1,10 +1,11 @@
 /**
- * Push alerts (same targets as scripts/notify.py): NOTIFY_URL is an ntfy
+ * Push alerts (same targets as scripts/notify.py): the target (settings.json
+ * over NOTIFY_URL) is an ntfy
  * topic URL, a Discord webhook, or any URL that takes a JSON POST
  * {title, message, url}. Best-effort: failures are logged, never thrown.
  */
 import "server-only";
-import { APP_URL, NOTIFY_URL } from "@/lib/settings";
+import { effective, type AlertKind } from "@/lib/user-settings";
 
 export interface Alert {
   title: string;
@@ -14,11 +15,15 @@ export interface Alert {
   /** ntfy tags (emoji shortcodes), e.g. "alarm_clock". */
   tags?: string;
   priority?: "min" | "low" | "default" | "high" | "max";
+  /** Skipped when this kind is turned off on /settings. */
+  kind?: AlertKind;
 }
 
-export async function notify(a: Alert, url = NOTIFY_URL): Promise<boolean> {
-  if (!url) return false;
-  const click = APP_URL ? `${APP_URL}${a.path ?? "/"}` : "";
+export async function notify(a: Alert, target?: string): Promise<boolean> {
+  const e = await effective();
+  const url = target ?? e.notifyUrl;
+  if (!url || (a.kind && e.alertsOff.has(a.kind))) return false;
+  const click = e.appUrl ? `${e.appUrl}${a.path ?? "/"}` : "";
   let init: RequestInit;
   if (/discord(app)?\.com\/api\/webhooks/.test(url)) {
     const text = `**${a.title}**\n${a.message}${click ? `\n${click}` : ""}`;

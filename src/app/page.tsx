@@ -8,7 +8,7 @@ import { getLibrary } from "@/lib/library";
 import { agenda, byDue, courseMap, groupAssignments, isDone, limitGroups, urgencyOf } from "@/lib/school/derive";
 import { dayKey, daysBetween, formatLongDate, formatTime, formatWeekdayDate, hourOfDay, relative } from "@/lib/school/time";
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
-import { CourseCard } from "@/components/course-card";
+import { CourseCard, classGridClass } from "@/components/course-card";
 import { DataUnavailable, SyncedAt } from "@/components/data-state";
 import { EmptyState, Section, SectionLink, Stat, Badge, CourseTag, hueStyle } from "@/components/ui";
 import { ExamCountdown, OverviewWidgets, SIDE_WIDGETS, examsOf } from "@/components/widgets";
@@ -44,9 +44,7 @@ export default async function Home() {
   const folders: Map<string, FolderLink> = library?.ok ? folderLinks(snapshot.assignments, library.courses) : new Map();
   // Phone "Next up": the next class meeting, the next open deadline, and the next exam.
   const nextDue = open.filter((a) => a.dueAt && Date.parse(a.dueAt) > now.getTime()).sort(byDue)[0];
-  const nextClass = snapshot.events
-    .filter((e) => e.kind === "class" && Date.parse(e.endsAt ?? e.startsAt) > now.getTime())
-    .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
+  const nextClass = snapshot.events.filter((e) => e.kind === "class" && Date.parse(e.endsAt ?? e.startsAt) > now.getTime()).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
   const nextExam = examsOf(snapshot, now, library)[0];
   // Drop ids that are no longer overdue so the cookie doesn't grow forever.
   const liveHidden = hiddenIds.filter((id) => overdue.some((a) => a.id === id));
@@ -125,36 +123,17 @@ export default async function Home() {
       <div className="grid grid-cols-4 gap-2 md:gap-3 mb-8">
         <Stat compact label="Due today" value={dueToday.filter((a) => !isDone(a)).length} href="/assignments" />
         <Stat compact label="Next 7 days" shortLabel="7 days" value={next7.length} href="/assignments" />
-        <Stat
-          compact
-          label="Overdue"
-          value={visibleOverdue.length}
-          tone="danger"
-          href="/assignments?filter=overdue"
-          hint={olderOverdue > 0 ? `+${olderOverdue} older` : undefined}
-        />
+        <Stat compact label="Overdue" value={visibleOverdue.length} tone="danger" href="/assignments?filter=overdue" hint={olderOverdue > 0 ? `+${olderOverdue} older` : undefined} />
         <Stat compact label="Classes" value={activeCourses.length} href="/courses" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-x-8 gap-y-8">
         <div className="lg:col-span-2 space-y-8">
           {visibleOverdue.length > 0 && (
-            <Section
-              title="Overdue"
-              count={visibleOverdue.length}
-              action={<SectionLink href="/assignments?filter=overdue">View all</SectionLink>}
-            >
+            <Section title="Overdue" count={visibleOverdue.length} action={<SectionLink href="/assignments?filter=overdue">View all</SectionLink>}>
               <AssignmentList>
                 {visibleOverdue.slice(0, 4).map((a) => (
-                  <AssignmentRow
-                    key={a.id}
-                    a={a}
-                    course={courses.get(a.courseId)}
-                    now={now}
-                    dateStyle="full"
-                    folder={folders.get(a.id)}
-                    action={<HideOverdueButton id={a.id} hidden={liveHidden} />}
-                  />
+                  <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} dateStyle="full" folder={folders.get(a.id)} action={<HideOverdueButton id={a.id} hidden={liveHidden} />} />
                 ))}
               </AssignmentList>
               {olderOverdue > 0 && <OlderOverdue count={olderOverdue} />}
@@ -175,13 +154,7 @@ export default async function Home() {
               <ul className="card divide-y divide-border overflow-hidden">
                 {todayItems.map((item) =>
                   item.type === "assignment" ? (
-                    <AssignmentRow
-                      key={item.assignment.id}
-                      a={item.assignment}
-                      course={courses.get(item.assignment.courseId)}
-                      now={now}
-                      folder={folders.get(item.assignment.id)}
-                    />
+                    <AssignmentRow key={item.assignment.id} a={item.assignment} course={courses.get(item.assignment.courseId)} now={now} folder={folders.get(item.assignment.id)} />
                   ) : (
                     <li
                       key={item.event.id}
@@ -233,14 +206,7 @@ export default async function Home() {
                     <div className="text-[12.5px] font-medium text-muted mb-1.5 px-0.5">{g.label}</div>
                     <AssignmentList>
                       {g.items.map((a) => (
-                        <AssignmentRow
-                          key={a.id}
-                          a={a}
-                          course={courses.get(a.courseId)}
-                          now={now}
-                          dateStyle={g.key === "tomorrow" ? "time" : "full"}
-                          folder={folders.get(a.id)}
-                        />
+                        <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} dateStyle={g.key === "tomorrow" ? "time" : "full"} folder={folders.get(a.id)} />
                       ))}
                     </AssignmentList>
                   </div>
@@ -262,13 +228,7 @@ export default async function Home() {
                 .flatMap((g) => g.links)
                 .slice(0, 8)
                 .map((l) => (
-                  <a
-                    key={l.url + l.label}
-                    href={l.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 bg-surface px-3 py-2.5 text-[13px] hover:bg-surface-2 transition-colors"
-                  >
+                  <a key={l.url + l.label} href={l.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-surface px-3 py-2.5 text-[13px] hover:bg-surface-2 transition-colors">
                     <LinkIcon name={l.icon} className="size-3.5 text-muted shrink-0" />
                     <span className="truncate">{l.label}</span>
                   </a>
@@ -302,7 +262,7 @@ export default async function Home() {
             </EmptyState>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className={classGridClass}>
             {activeCourses.map((c) => (
               <CourseCard
                 key={c.id}

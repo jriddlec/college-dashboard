@@ -449,11 +449,11 @@ def alert_changes(prev: Path, new: Path) -> None:
     if changed:
         lines = [f"{names.get(c, c)} · {name}: {score}" for (c, _), (name, score) in changed[:8]]
         more = f"\n…and {len(changed) - 8} more" if len(changed) > 8 else ""
-        notify(f"{len(changed)} new grade{'s' if len(changed) > 1 else ''}", "\n".join(lines) + more, "/", "mortar_board")
+        notify(f"{len(changed)} new grade{'s' if len(changed) > 1 else ''}", "\n".join(lines) + more, "/", "mortar_board", kind="grades")
     old_n = _news(prev)
     fresh = [(k, t) for k, t in _news(new).items() if k not in old_n]
     for (c, _), title in fresh[:5]:
-        notify(f"{names.get(c, c)} announcement", title, f"/courses/{c}", "loudspeaker")
+        notify(f"{names.get(c, c)} announcement", title, f"/courses/{c}", "loudspeaker", kind="announcements")
 
 
 def track_failures(root: Path, ok: bool) -> None:
@@ -462,9 +462,9 @@ def track_failures(root: Path, ok: bool) -> None:
     state = _load(state_file) or {}
     fails = 0 if ok else int(state.get("fails", 0)) + 1
     if fails == FAIL_ALERT_AFTER:
-        notify("School sync is failing", "The last syncs couldn't reach the LMS; the dashboard is showing older data. Sign in again if the session expired.", "/status", "warning", "high")
+        notify("School sync is failing", "The last syncs couldn't reach the LMS; the dashboard is showing older data. Sign in again if the session expired.", "/status", "warning", "high", kind="sync")
     elif ok and int(state.get("fails", 0)) >= FAIL_ALERT_AFTER:
-        notify("School sync is back", "Syncing works again.", "/status", "white_check_mark")
+        notify("School sync is back", "Syncing works again.", "/status", "white_check_mark", kind="sync")
     try:
         state_file.write_text(json.dumps({"fails": fails}), encoding="utf-8")
     except OSError:

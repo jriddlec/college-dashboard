@@ -4,14 +4,15 @@
  * minutes: open work due within REMIND_DUE_HOURS (default 24) and exams within
  * REMIND_EXAM_HOURS (default 48), each sent once (remembered in the shared
  * state), never during quiet hours (REMIND_QUIET, default 22-7).
- * Needs NOTIFY_URL and STATE_DIR; off otherwise.
+ * Values and on/off come from /settings (settings.json over .env).
+ * Needs a notify target and STATE_DIR; off otherwise.
  */
 import "server-only";
 import { loadSchoolData } from "@/lib/school";
 import { courseMap, isDone } from "@/lib/school/derive";
 import { formatTime, formatWeekdayDate, hourOfDay } from "@/lib/school/time";
 import type { SchoolSnapshot } from "@/lib/school/types";
-import { NOTIFY_URL } from "@/lib/settings";
+import { effective } from "@/lib/user-settings";
 import { readState, setIds, stateDir, updateState } from "@/lib/state";
 import { notify, type Alert } from "@/lib/notify";
 
@@ -26,8 +27,12 @@ export interface ReminderOptions {
 }
 
 export function reminderOptions(env = process.env): ReminderOptions {
-  const q = /^(\d{1,2})-(\d{1,2})$/.exec(env.REMIND_QUIET ?? "22-7");
-  return { dueHours: num(env.REMIND_DUE_HOURS, 24), examHours: num(env.REMIND_EXAM_HOURS, 48), quiet: q ? [Number(q[1]), Number(q[2])] : null };
+  return { dueHours: num(env.REMIND_DUE_HOURS, 24), examHours: num(env.REMIND_EXAM_HOURS, 48), quiet: parseQuiet(env.REMIND_QUIET ?? "22-7") };
+}
+
+export function parseQuiet(v: string): ReminderOptions["quiet"] {
+  const q = /^(\d{1,2})-(\d{1,2})$/.exec(v);
+  return q ? [Number(q[1]), Number(q[2])] : null;
 }
 
 export function isQuiet(hour: number, quiet: ReminderOptions["quiet"]): boolean {
@@ -60,6 +65,7 @@ export function dueReminders(s: SchoolSnapshot, now: Date, sent: ReadonlySet<str
       message: lines.join("\n") + (due.length > 8 ? `\n…and ${due.length - 8} more` : ""),
       path: "/assignments",
       tags: "alarm_clock",
+      kind: "deadlines",
     });
     keys.push(...due.map((a) => `due:${a.id}:${a.dueAt}`));
   }
@@ -75,14 +81,16 @@ export function dueReminders(s: SchoolSnapshot, now: Date, sent: ReadonlySet<str
       path: "/",
       tags: "memo",
       priority: "high",
+      kind: "exams",
     });
   }
   return { alerts, keys };
 }
 
 export async function checkReminders(now = new Date()): Promise<number> {
-  const o = reminderOptions();
-  if (!NOTIFY_URL || !stateDir() || isQuiet(hourOfDay(now), o.quiet)) return 0;
+  const e = await effective();
+  const o: ReminderOptions = { dueHours: e.remindDueHours, examHours: e.remindExamHours, quiet: parseQuiet(e.remindQuiet) };
+  if (!e.notifyUrl || !stateDir() || isQuiet(hourOfDay(now), o.quiet)) return 0;
   const data = await loadSchoolData([], now);
   if (data.status !== "ok") return 0;
   const sent = new Set((await readState()).reminded);
@@ -99,7 +107,8 @@ let started = false;
 
 /** Starts the 10-minute reminder loop (once per server). */
 export function startReminders() {
-  if (started || !NOTIFY_URL || !stateDir()) return;
+  // Runs whenever STATE_DIR is set: the target can be added later on /settings.
+  if (started || !stateDir()) return;
   started = true;
   let running = false;
   const tick = async () => {

@@ -90,7 +90,7 @@ def main():
                     state = "needs_login"
                     record("needs_login")
                     write_status("needs_login")
-                    notify("Sign in to your LMS", "The sign-in session expired, so syncing has stopped. Open Data status for the sign-in link.", "/status", "key", "high")
+                    notify("Sign in to your LMS", "The sign-in session expired, so syncing has stopped. Open Data status for the sign-in link.", "/status", "key", "high", kind="signin")
                     continue
                 exp = mint(page)
                 api = api_ok() if exp else None

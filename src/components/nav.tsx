@@ -24,12 +24,12 @@ import {
   Palette,
   PenLine,
   Scale,
+  Settings,
   Sigma,
   type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { CSSProperties } from "react";
-import { ThemeToggle } from "./theme-toggle";
 import { SyncDot, SyncLabel, type NavSync } from "./sync-dot";
 import { SearchButton } from "./command-palette";
 
@@ -129,7 +129,10 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
             )}
           </span>
         </Link>
-        <ThemeToggle />
+        <Link href="/settings" aria-current={isActive(pathname, "/settings") ? "page" : undefined} className={clsx(itemClass(isActive(pathname, "/settings")), "text-[13px] font-normal")}>
+          <Settings className="size-4" strokeWidth={1.8} />
+          Settings
+        </Link>
       </div>
     </aside>
   );
@@ -175,7 +178,9 @@ export function MobileHeader({ appName, sync }: Brand) {
           <Database className="size-4" />
           {sync && sync.level !== "ok" && <SyncDot sync={sync} className="absolute right-1.5 bottom-1.5 ring-2 ring-bg" />}
         </Link>
-        <ThemeToggle compact />
+        <Link href="/settings" aria-label="Settings" className="p-2 text-muted">
+          <Settings className="size-4" />
+        </Link>
       </div>
     </header>
   );

@@ -3,12 +3,13 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type Pref = "system" | "light" | "dark";
+export type ThemePref = "system" | "light" | "dark";
+type Pref = ThemePref;
 const ORDER: Pref[] = ["system", "light", "dark"];
 const ICON = { system: Monitor, light: Sun, dark: Moon };
 const LABEL = { system: "System theme", light: "Light theme", dark: "Dark theme" };
 
-function apply(pref: Pref) {
+export function applyTheme(pref: Pref) {
   const dark = pref === "dark" || (pref === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
 }
@@ -28,7 +29,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPref(stored);
     const mq = matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => apply((localStorage.getItem("theme") as Pref) || "system");
+    const onChange = () => applyTheme((localStorage.getItem("theme") as Pref) || "system");
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
@@ -39,7 +40,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     try {
       localStorage.setItem("theme", next);
     } catch {}
-    apply(next);
+    applyTheme(next);
   }
 
   const Icon = ICON[pref];
@@ -51,10 +52,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     );
   }
   return (
-    <button
-      onClick={cycle}
-      className="w-full flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface-2/70 hover:text-fg transition-colors"
-    >
+    <button onClick={cycle} className="w-full flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface-2/70 hover:text-fg transition-colors">
       <Icon className="size-4" strokeWidth={1.8} />
       {LABEL[pref]}
     </button>
