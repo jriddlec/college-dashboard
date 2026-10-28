@@ -72,6 +72,9 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
     : [];
   const read = (await readState()).readAnnouncements;
   const unread = news.filter((n) => !read.includes(n.id));
+  // Overview: unread posts first, then the newest read ones, 3 in all.
+  const recentNews = [...unread, ...news.filter((n) => read.includes(n.id))].slice(0, 3);
+  const nextDue = open.filter((a) => a.dueAt && urgencyOf(a, now) !== "overdue").sort(byDue)[0];
   const upNext = groupAssignments(open, now)
     .flatMap((g) => g.items)
     .slice(0, 4);
@@ -117,12 +120,19 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
 
       {tab === "overview" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          <Stat label="Open" value={open.length - overdue.length} />
-          <Stat label="Overdue" value={overdue.length} tone="danger" />
-          <Stat label="Completed" value={assignments.filter(isDone).length} />
+          <Stat
+            label="To do"
+            value={open.length - overdue.length}
+            hint={nextDue?.dueAt ? `assignments · next ${formatShortDate(nextDue.dueAt)}` : "assignments not yet due"}
+            href={courseTabHref(id, "assignments")}
+          />
+          <Stat label="Overdue" value={overdue.length} tone="danger" hint="assignments past due" href={courseTabHref(id, "assignments")} />
+          <Stat label="Done" value={assignments.filter(isDone).length} hint="assignments submitted or graded" href={courseTabHref(id, "assignments")} />
           <Stat
             label="Current grade"
             value={standing ? `~${standing.letter} ${standing.percent.toFixed(1)}%` : total ? (total.display ?? (total.percent != null ? `${total.percent.toFixed(1)}%` : "—")) : "—"}
+            hint={standing ? "estimated from syllabus weights" : total ? `from ${LMS_LABEL}` : "no grades yet"}
+            href={courseTabHref(id, "grades")}
           />
         </div>
       )}
@@ -130,10 +140,10 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
       {tab === "overview" && (
         <div className="grid lg:grid-cols-3 gap-x-8 gap-y-8">
           <div className="lg:col-span-2 space-y-8">
-            {unread.length > 0 && (
-              <Section title="New announcements" count={unread.length} action={<SectionLink href={courseTabHref(id, "news")}>All</SectionLink>}>
+            {recentNews.length > 0 && (
+              <Section title="Announcements" count={unread.length || undefined} action={<SectionLink href={courseTabHref(id, "news")}>All {news.length}</SectionLink>}>
                 <div className="card overflow-hidden">
-                  <AnnouncementList items={unread.slice(0, 2)} courses={{ [course.id]: course }} read={read} now={now.toISOString()} showCourse={false} lines={2} />
+                  <AnnouncementList items={recentNews} courses={{ [course.id]: course }} read={read} now={now.toISOString()} showCourse={false} lines={2} />
                 </div>
               </Section>
             )}

@@ -161,6 +161,8 @@ export const AnnouncementSchema = z.object({
   body: z.string().nullable(),
   postedAt: isoDate,
   url: z.string().nullable(),
+  /** No longer in the LMS; kept by the app's announcement archive. */
+  archived: z.boolean().optional(),
 });
 export type Announcement = z.infer<typeof AnnouncementSchema>;
 

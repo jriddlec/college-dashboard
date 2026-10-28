@@ -22,6 +22,7 @@ import { getCourseOverrides, getGrading, getScheduleConfig, getSyllabusConfig, g
 import { LMS, type Lms } from "@/lib/settings";
 import { MARKED_DONE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import type { Course, SnapshotResult } from "./types";
+import { withArchivedAnnouncements } from "./announcement-archive";
 
 export type DataSource = Lms;
 
@@ -68,6 +69,7 @@ export async function loadSchoolData(browserMarks: string[] = [], now = new Date
     ...merged,
     courses: merged.courses.map((c) => withOverride(c, overrides.value)),
     assignments: marked.size ? merged.assignments.map((a) => (marked.has(a.id) ? { ...a, markedDone: true } : a)) : merged.assignments,
+    announcements: source === "fixture" ? merged.announcements : await withArchivedAnnouncements(merged.announcements),
   };
   const configErrors = [grading.error, syllabus.error, webassign.error, overrides.error, schedule.error].filter((e): e is string => !!e);
   return { status: "ok", snapshot: configErrors.length ? { ...snapshot, warnings: [...configErrors, ...snapshot.warnings] } : snapshot };

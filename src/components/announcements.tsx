@@ -88,6 +88,7 @@ export function AnnouncementList({
               <div className="flex items-center gap-2 mt-0.5">
                 {showCourse && <CourseTag course={courses[n.courseId]} />}
                 {!isRead && <NewBadge at={n.postedAt} />}
+                {n.archived && <span className="text-[11px] text-subtle" title="No longer posted in the LMS; kept by the dashboard">Archived</span>}
                 {!isRead && (
                   <button type="button" onClick={() => markRead([n.id])} className="ml-auto inline-flex items-center gap-1 text-[11.5px] text-subtle hover:text-fg">
                     <Check className="size-3" /> Mark read
