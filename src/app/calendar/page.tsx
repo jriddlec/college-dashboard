@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { getSchoolData } from "@/lib/school";
-import { agenda, courseLabel, courseMap, isDone, urgencyOf, weeklyLoad, type AgendaItem } from "@/lib/school/derive";
+import { agenda, courseLabel, courseMap, filterAssignments, isDone, urgencyOf, weeklyLoad, type AgendaItem } from "@/lib/school/derive";
 import { Section } from "@/components/ui";
 import { Workload } from "@/components/workload";
 import { SubscribeCalendar } from "@/components/subscribe-calendar";
 import { addDays, dayKey, formatKey, formatTime, weekday } from "@/lib/school/time";
 import { DataUnavailable } from "@/components/data-state";
 import { LMS_LABEL } from "@/lib/settings";
+import { PlannerTabs } from "@/components/planner-tabs";
 import { CalendarView, type CalBonus, type CalCourse, type CalItem } from "./calendar-view";
 
-export const metadata: Metadata = { title: "Calendar" };
+export const metadata: Metadata = { title: "Planner · Calendar" };
 
 function shiftMonth(ym: string, n: number): string {
   const [y, m] = ym.split("-").map(Number);
@@ -135,32 +136,39 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <>
-    <CalendarView
-      lmsLabel={LMS_LABEL}
-      month={month}
-      monthLabel={formatKey(first, { month: "long", year: "numeric" })}
-      prevMonth={shiftMonth(month, -1)}
-      nextMonth={shiftMonth(month, 1)}
-      today={today}
-      nowMs={now.getTime()}
-      showClasses={showClasses}
-      initialHidden={hidden}
-      courses={filterCourses}
-      cells={cells}
-      dayLabels={Object.fromEntries(cells.map((k) => [k, formatKey(k, { weekday: "long", month: "short", day: "numeric" })]))}
-      items={items}
-      bonuses={bonuses}
-    />
-    <div className="grid lg:grid-cols-2 gap-x-8 gap-y-8 mt-10">
-      <Section title="Workload" action={<span className="text-[11.5px] text-subtle">open deadlines per week</span>}>
-        <div className="card overflow-hidden">
-          <Workload weeks={weeklyLoad(snapshot.assignments, now, 8)} courses={courses} />
-        </div>
-      </Section>
-      <Section title="Subscribe">
-        <SubscribeCalendar />
-      </Section>
-    </div>
+      <CalendarView
+        lmsLabel={LMS_LABEL}
+        tabs={
+          <PlannerTabs
+            active="calendar"
+            overdue={filterAssignments(snapshot.assignments, "overdue", now, null).length}
+            upcoming={filterAssignments(snapshot.assignments, "upcoming", now, null).length}
+          />
+        }
+        month={month}
+        monthLabel={formatKey(first, { month: "long", year: "numeric" })}
+        prevMonth={shiftMonth(month, -1)}
+        nextMonth={shiftMonth(month, 1)}
+        today={today}
+        nowMs={now.getTime()}
+        showClasses={showClasses}
+        initialHidden={hidden}
+        courses={filterCourses}
+        cells={cells}
+        dayLabels={Object.fromEntries(cells.map((k) => [k, formatKey(k, { weekday: "long", month: "short", day: "numeric" })]))}
+        items={items}
+        bonuses={bonuses}
+      />
+      <div className="grid lg:grid-cols-2 gap-x-8 gap-y-8 mt-10">
+        <Section title="Workload" action={<span className="text-[11.5px] text-subtle">open deadlines per week</span>}>
+          <div className="card overflow-hidden">
+            <Workload weeks={weeklyLoad(snapshot.assignments, now, 8)} courses={courses} />
+          </div>
+        </Section>
+        <Section title="Subscribe">
+          <SubscribeCalendar />
+        </Section>
+      </div>
     </>
   );
 }

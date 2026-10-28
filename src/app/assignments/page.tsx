@@ -9,9 +9,10 @@ import { ASSIGNMENT_FILTERS, courseMap, filterAssignments, groupAssignments, typ
 import { AssignmentList, AssignmentRow } from "@/components/assignment-row";
 import { DataUnavailable } from "@/components/data-state";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { PlannerTabs } from "@/components/planner-tabs";
 import { CourseSelect } from "./course-select";
 
-export const metadata: Metadata = { title: "Assignments" };
+export const metadata: Metadata = { title: "Planner" };
 
 const LABELS: Record<AssignmentFilter, string> = {
   upcoming: "Upcoming",
@@ -47,7 +48,8 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
 
   return (
     <div>
-      <PageHeader title="Assignments" subtitle={`${counts.upcoming} upcoming · ${counts.overdue} overdue`} />
+      <PageHeader title="Planner" subtitle={`${counts.upcoming} upcoming · ${counts.overdue} overdue`} />
+      <PlannerTabs active="list" overdue={counts.overdue} upcoming={counts.upcoming} />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div role="tablist" className="inline-flex rounded-lg bg-surface-2 p-0.5 self-start overflow-x-auto max-w-full">
@@ -57,10 +59,7 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
               href={href(f)}
               role="tab"
               aria-selected={f === filter}
-              className={clsx(
-                "px-3 py-1 rounded-md text-[13px] whitespace-nowrap transition-colors",
-                f === filter ? "bg-surface text-fg font-medium shadow-sm" : "text-muted hover:text-fg",
-              )}
+              className={clsx("px-3 py-1 rounded-md text-[13px] whitespace-nowrap transition-colors", f === filter ? "bg-surface text-fg font-medium shadow-sm" : "text-muted hover:text-fg")}
             >
               {LABELS[f]}
               <span className={clsx("ml-1.5 tabular-nums text-[11.5px]", f === "overdue" && counts.overdue > 0 ? "text-danger" : "text-subtle")}>{counts[f]}</span>
@@ -73,9 +72,13 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
       {items.length === 0 ? (
         <div className="card">
           {filter === "overdue" ? (
-            <EmptyState icon={PartyPopper} title="Nothing overdue">Every past deadline is submitted.</EmptyState>
+            <EmptyState icon={PartyPopper} title="Nothing overdue">
+              Every past deadline is submitted.
+            </EmptyState>
           ) : filter === "completed" ? (
-            <EmptyState icon={CircleCheck} title="No completed work yet">Submitted and graded items will show up here.</EmptyState>
+            <EmptyState icon={CircleCheck} title="No completed work yet">
+              Submitted and graded items will show up here.
+            </EmptyState>
           ) : (
             <EmptyState icon={Inbox} title="No assignments">
               {courseId ? "Nothing matches this course and filter." : "No assignments match this filter."}

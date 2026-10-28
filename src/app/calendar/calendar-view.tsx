@@ -81,6 +81,8 @@ type Hover = { bonusIds: string[]; anchor: HTMLElement } | null;
 
 export function CalendarView(props: {
   lmsLabel: string;
+  /** Planner tab bar, rendered under the header. */
+  tabs?: ReactNode;
   month: string;
   monthLabel: string;
   prevMonth: string;
@@ -178,8 +180,7 @@ export function CalendarView(props: {
     setTimeout(() => setFlash((f) => (f === k ? null : f)), 1600);
   };
 
-  const toggleOpen = (kind: "item" | "day", id: string, anchor: HTMLElement) =>
-    setOpen((o) => (o && o.kind === kind && o.id === id ? null : { kind, id, anchor }));
+  const toggleOpen = (kind: "item" | "day", id: string, anchor: HTMLElement) => setOpen((o) => (o && o.kind === kind && o.id === id ? null : { kind, id, anchor }));
 
   const highlighted = new Set<string>();
   const activeBonus = focusBonus ? [focusBonus] : (hover?.bonusIds ?? []);
@@ -188,7 +189,7 @@ export function CalendarView(props: {
   return (
     <div>
       <PageHeader
-        title="Calendar"
+        title="Planner"
         subtitle={`Deadlines, exams, and events from ${props.lmsLabel}`}
         actions={
           <Link
@@ -199,6 +200,7 @@ export function CalendarView(props: {
           </Link>
         }
       />
+      {props.tabs}
 
       {props.courses.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5 mb-4" role="group" aria-label="Filter by course">
@@ -224,7 +226,14 @@ export function CalendarView(props: {
             );
           })}
           {hidden.size > 0 && (
-            <button type="button" onClick={() => { setHidden(new Set()); window.history.replaceState(null, "", href(month, showClasses, new Set())); }} className="text-[12px] text-muted hover:text-fg px-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setHidden(new Set());
+                window.history.replaceState(null, "", href(month, showClasses, new Set()));
+              }}
+              className="text-[12px] text-muted hover:text-fg px-1.5"
+            >
               Show all
             </button>
           )}
@@ -300,18 +309,15 @@ export function CalendarView(props: {
                         className="w-full flex items-center gap-1 rounded px-1 py-0.5 text-[11.5px] leading-tight text-warn font-medium hover:bg-warn/10 text-left"
                       >
                         <Zap className="size-3 shrink-0" />
-                        <span className="truncate">+{b.percent}% · {b.shortTitle}</span>
+                        <span className="truncate">
+                          +{b.percent}% · {b.shortTitle}
+                        </span>
                       </button>
                     </li>
                   ))}
                   {dayItems.slice(0, room).map((i) => (
                     <li key={i.key}>
-                      <Chip
-                        item={i}
-                        now={now}
-                        onClick={(el) => toggleOpen("item", i.key, el)}
-                        onHover={(on) => i.bonus && setFocusBonus(on ? i.key.slice(1) : null)}
-                      />
+                      <Chip item={i} now={now} onClick={(el) => toggleOpen("item", i.key, el)} onHover={(on) => i.bonus && setFocusBonus(on ? i.key.slice(1) : null)} />
                     </li>
                   ))}
                   {dayItems.length > room && (
@@ -341,8 +347,12 @@ export function CalendarView(props: {
 
       {bonuses.length > 0 && (
         <p className="hidden md:flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11.5px] text-subtle">
-          <span className="inline-flex items-center gap-1"><span className="inline-block w-4 h-2.5 rounded-sm bg-warn-soft border border-warn/40" /> Early-bonus cutoff</span>
-          <span className="inline-flex items-center gap-1"><span className="inline-block w-4 h-0.75 bg-warn" /> Final 72h — finished now, no bonus (hover for details)</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block w-4 h-2.5 rounded-sm bg-warn-soft border border-warn/40" /> Early-bonus cutoff
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block w-4 h-0.75 bg-warn" /> Final 72h — finished now, no bonus (hover for details)
+          </span>
           <span className="ml-auto">Click an item for details · ← → months · T today</span>
         </p>
       )}
@@ -359,7 +369,15 @@ export function CalendarView(props: {
         ) : (
           <div className="space-y-4">
             {agendaDays.map((k) => (
-              <div key={k} id={`day-${k}`} className={clsx("scroll-mt-4 rounded-lg transition-[box-shadow,opacity] duration-500", k < today && flash !== k && "opacity-60", flash === k && "ring-2 ring-accent ring-offset-4 ring-offset-bg")}>
+              <div
+                key={k}
+                id={`day-${k}`}
+                className={clsx(
+                  "scroll-mt-4 rounded-lg transition-[box-shadow,opacity] duration-500",
+                  k < today && flash !== k && "opacity-60",
+                  flash === k && "ring-2 ring-accent ring-offset-4 ring-offset-bg",
+                )}
+              >
                 <div className="flex items-baseline gap-2 mb-1.5 px-0.5">
                   <span className={clsx("text-[13px] font-medium", k === today && "text-accent")}>{props.dayLabels[k]}</span>
                   {k === today && <span className="text-[11.5px] text-accent">Today</span>}
@@ -401,7 +419,9 @@ export function CalendarView(props: {
             <div className="w-72">
               <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
                 <span className="text-[12.5px] font-medium">{props.dayLabels[open.id]}</span>
-                <button type="button" onClick={() => setOpen(null)} aria-label="Close" className="text-muted hover:text-fg"><X className="size-3.5" /></button>
+                <button type="button" onClick={() => setOpen(null)} aria-label="Close" className="text-muted hover:text-fg">
+                  <X className="size-3.5" />
+                </button>
               </div>
               <ul className="px-1.5 pb-2 space-y-0.5 max-h-80 overflow-y-auto">
                 {(byDay.get(open.id) ?? []).map((i) => (
@@ -465,7 +485,13 @@ function CourseLink({ label, href, courseId }: { label: string; href: string | n
       {label}
     </span>
   );
-  return href ? <Link href={href} className="hover:text-fg">{content}</Link> : content;
+  return href ? (
+    <Link href={href} className="hover:text-fg">
+      {content}
+    </Link>
+  ) : (
+    content
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -483,7 +509,11 @@ function DetailFields({ item: i, now }: { item: CalItem; now: number }) {
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
       <Field label={i.isEvent ? "When" : "Due"}>
         {i.whenLabel}
-        {!i.done && <span className={clsx("ml-1.5", i.overdue ? "text-danger" : Date.parse(i.at) - now < SOON_MS ? "text-warn" : "text-subtle")}>(<Countdown at={i.at} now={now} />)</span>}
+        {!i.done && (
+          <span className={clsx("ml-1.5", i.overdue ? "text-danger" : Date.parse(i.at) - now < SOON_MS ? "text-warn" : "text-subtle")}>
+            (<Countdown at={i.at} now={now} />)
+          </span>
+        )}
       </Field>
       {i.location && <Field label="Where">{i.location}</Field>}
       {i.status && <Field label="Status">{i.status}</Field>}
@@ -492,7 +522,13 @@ function DetailFields({ item: i, now }: { item: CalItem; now: number }) {
         <Field label="Bonus">
           <span className={bonusMs > 0 ? "text-warn" : "text-subtle"}>
             +{i.bonus.percent}% if finished by {i.bonus.label}{" "}
-            {bonusMs > 0 ? <>(<Countdown at={i.bonus.at} now={now} />)</> : "— missed"}
+            {bonusMs > 0 ? (
+              <>
+                (<Countdown at={i.bonus.at} now={now} />)
+              </>
+            ) : (
+              "— missed"
+            )}
           </span>
         </Field>
       )}
@@ -506,7 +542,9 @@ function ItemDetails({ item: i, now, onClose }: { item: CalItem; now: number; on
       <div className="flex items-start gap-2 mb-2">
         <span className="mt-1.5 size-2 shrink-0 rounded-full course-dot" />
         <div className={clsx("min-w-0 flex-1 text-[13.5px] font-medium leading-snug", i.done && "line-through text-muted")}>{i.title}</div>
-        <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-fg"><X className="size-3.5" /></button>
+        <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-fg">
+          <X className="size-3.5" />
+        </button>
       </div>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mb-2.5">
         <CourseLink label={i.courseLabel} href={i.courseHref} courseId={i.courseId} />
@@ -534,15 +572,26 @@ function BonusDetails({ bonuses, now, windowNote }: { bonuses: CalBonus[]; now: 
           <div key={b.id} className="text-[12px]" style={hueStyle(b.courseId)}>
             <div className="flex items-center gap-1.5 text-[13px] font-medium leading-snug">
               <Zap className="size-3.5 shrink-0 text-warn" />
-              {b.url ? <a href={b.url} target="_blank" rel="noreferrer" className="hover:underline underline-offset-2">{b.shortTitle}</a> : b.shortTitle}
+              {b.url ? (
+                <a href={b.url} target="_blank" rel="noreferrer" className="hover:underline underline-offset-2">
+                  {b.shortTitle}
+                </a>
+              ) : (
+                b.shortTitle
+              )}
             </div>
-            <div className="mt-1 mb-1"><CourseLink label={b.courseLabel} href={b.courseHref} courseId={b.courseId} /></div>
+            <div className="mt-1 mb-1">
+              <CourseLink label={b.courseLabel} href={b.courseHref} courseId={b.courseId} />
+            </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
               <Field label="Cutoff">
                 {b.cutoffLabel} <span className={ms > 0 ? "text-warn" : "text-subtle"}>({ms > 0 ? <Countdown at={b.at} now={now} /> : "passed"})</span>
               </Field>
               <Field label="Due">
-                {b.dueLabel} <span className="text-subtle">(<Countdown at={b.dueAt} now={now} />)</span>
+                {b.dueLabel}{" "}
+                <span className="text-subtle">
+                  (<Countdown at={b.dueAt} now={now} />)
+                </span>
               </Field>
               <Field label="Bonus">+{b.percent}%</Field>
             </dl>

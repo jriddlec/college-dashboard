@@ -9,7 +9,6 @@ import {
   Brain,
   Briefcase,
   Calculator,
-  CalendarDays,
   Code2,
   Database,
   Dna,
@@ -58,31 +57,25 @@ type Brand = { appName: string; schoolName: string; sync: NavSync | null };
 
 const NAV = [
   { href: "/", label: "Home", icon: House },
-  { href: "/assignments", label: "Assignments", icon: ListTodo },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  // Planner: Assignments list and Calendar, switched by tabs on the page.
+  { href: "/assignments", label: "Planner", icon: ListTodo, also: ["/calendar"] },
   { href: "/courses", label: "Classes", icon: BookOpen },
   { href: "/library", label: "Library", icon: Library },
   { href: "/links", label: "Links", icon: Link2 },
 ];
 const MOBILE_NAV = NAV.filter((n) => n.href !== "/links");
 
-function isActive(pathname: string, href: string, exact = false) {
+function isActive(pathname: string, href: string, exact = false, also: string[] = []) {
+  if (also.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
   return href === "/" || exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 }
 
 function Logo({ appName }: { appName: string }) {
-  return (
-    <div className="size-6 rounded-md bg-accent text-white grid place-items-center text-[11px] font-bold tracking-tight">
-      {appName.slice(0, 1).toUpperCase()}
-    </div>
-  );
+  return <div className="size-6 rounded-md bg-accent text-white grid place-items-center text-[11px] font-bold tracking-tight">{appName.slice(0, 1).toUpperCase()}</div>;
 }
 
 const itemClass = (active: boolean) =>
-  clsx(
-    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors",
-    active ? "bg-surface-2 text-fg font-medium" : "text-muted hover:bg-surface-2/70 hover:text-fg",
-  );
+  clsx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors", active ? "bg-surface-2 text-fg font-medium" : "text-muted hover:bg-surface-2/70 hover:text-fg");
 
 export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCourse[] } & Brand) {
   const pathname = usePathname();
@@ -97,9 +90,9 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
       </Link>
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         <SearchButton className={clsx(itemClass(false), "w-full mb-1")} />
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, also }) => {
           // Library is exact here: its class pages are highlighted below.
-          const active = isActive(pathname, href, href === "/library");
+          const active = isActive(pathname, href, href === "/library", also);
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
               <Icon className="size-4" strokeWidth={active ? 2.2 : 1.8} />
@@ -122,10 +115,7 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
         })}
       </nav>
       <div className="px-2 py-3 border-t border-border space-y-1">
-        <Link
-          href="/status"
-          className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal", sync?.level === "bad" && "text-danger", sync?.level === "warn" && "text-warn")}
-        >
+        <Link href="/status" className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal", sync?.level === "bad" && "text-danger", sync?.level === "warn" && "text-warn")}>
           <span className="relative">
             <Database className="size-4" strokeWidth={1.8} />
             {sync && <SyncDot sync={sync} className="absolute -right-0.5 -bottom-0.5 ring-2 ring-sidebar" />}
@@ -149,9 +139,9 @@ export function MobileNav() {
   const pathname = usePathname();
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-surface/95 backdrop-blur pb-safe">
-      <div className="grid grid-cols-5">
-        {MOBILE_NAV.map(({ href, label, icon: Icon }) => {
-          const active = isActive(pathname, href);
+      <div className="grid grid-cols-4">
+        {MOBILE_NAV.map(({ href, label, icon: Icon, also }) => {
+          const active = isActive(pathname, href, false, also);
           return (
             <Link
               key={href}
