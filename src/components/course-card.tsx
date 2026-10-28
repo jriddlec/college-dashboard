@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import type { Assignment, Course, Grade } from "@/lib/school/types";
 import { isDone, urgencyOf } from "@/lib/school/derive";
 import { formatWeekdayDate, relative } from "@/lib/school/time";
@@ -49,7 +50,7 @@ export function CourseCard({
 }
 
 /** Grid used for class cards on Classes and Library. */
-export const classGridClass = "grid sm:grid-cols-2 xl:grid-cols-3 gap-3";
+export const classGridClass = "grid sm:grid-cols-2 gap-3";
 
 /** Class card shell shared by Classes and Library; `children` is the footer. */
 export function ClassCard({
@@ -70,19 +71,19 @@ export function ClassCard({
   children: ReactNode;
 }) {
   return (
-    <Link href={href} style={style} className="card group flex flex-col p-4 hover:border-border-strong transition-colors">
+    <Link href={href} style={style} className="card course-bar group flex flex-col px-4 py-3.5 hover:border-border-strong transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12px] font-medium course-text">
-          <span className="size-2 rounded-sm course-dot" />
-          {code}
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="size-2 rounded-full course-dot shrink-0" />
+          <span className="text-[15px] font-semibold truncate">{code}</span>
         </span>
-        {corner && <span className="text-[12px] tabular-nums text-muted">{corner}</span>}
+        <span className="flex items-center gap-2 shrink-0">
+          {corner && <span className="text-[12px] tabular-nums text-muted">{corner}</span>}
+          <ChevronRight className="size-4 text-subtle group-hover:text-fg transition-colors" />
+        </span>
       </div>
-      <div className="text-[14.5px] font-medium leading-snug mt-1.5 line-clamp-2 min-h-[2.6em]">{name}</div>
-      <div className="text-[12px] text-muted mt-0.5 truncate min-h-[1.5em]">{instructor}</div>
-      <div className="mt-auto pt-3">
-        <div className="pt-3 border-t border-border text-[12px] text-muted">{children}</div>
-      </div>
+      <div className="text-[13px] text-muted mt-0.5 truncate">{[name, instructor].filter(Boolean).join(" · ")}</div>
+      <div className="mt-auto pt-3 text-[12px] text-muted">{children}</div>
     </Link>
   );
 }
