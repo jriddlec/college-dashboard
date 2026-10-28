@@ -8,6 +8,7 @@
  *   canvas   Canvas data synced through the Canvas REST API
  */
 import "server-only";
+import { cache } from "react";
 import { connection } from "next/server";
 import { cookies } from "next/headers";
 import path from "node:path";
@@ -36,10 +37,11 @@ export function dataDir(): string {
   return path.resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR || "./data");
 }
 
-export async function getSchoolData(): Promise<SnapshotResult> {
+/** Once per request: metadata, layout and page share the same merged snapshot. */
+export const getSchoolData = cache(async (): Promise<SnapshotResult> => {
   await connection(); // always request-time: data and "now" change continuously
   return loadSchoolData(await readMarkedDone());
-}
+});
 
 /**
  * The merged snapshot (LMS + WebAssign + syllabus rows + course overrides +

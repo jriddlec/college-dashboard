@@ -68,27 +68,27 @@ export async function loadD2lSnapshot(dataDir: string, grading: Syllabi = {}, we
     const perCourse: D2lRaw["perCourse"] = {};
     const coursesDir = path.join(dir, "courses");
     const ids = await fs.readdir(coursesDir).catch(() => [] as string[]);
-    for (const id of ids) {
-      perCourse[id] = {
-        assignments: await readJson(path.join(coursesDir, id, "assignments.json")),
-        grades: await readJson(path.join(coursesDir, id, "grades.json")),
-        quizzes: await readJson(path.join(coursesDir, id, "quizzes.json")),
-        news: await readJson(path.join(coursesDir, id, "news.json")),
-        submissions: await readJson(path.join(coursesDir, id, "submissions.json")),
-        gradeObjects: await readJson(path.join(coursesDir, id, "grade-objects.json")),
-        gradeCategories: await readJson(path.join(coursesDir, id, "grade-categories.json")),
-        gradeSetup: await readJson(path.join(coursesDir, id, "grade-setup.json")),
-      };
-    }
+    const course = (id: string, name: string) => readJson(path.join(coursesDir, id, name));
+    await Promise.all(
+      ids.map(async (id) => {
+        const [assignments, grades, quizzes, news, submissions, gradeObjects, gradeCategories, gradeSetup] = await Promise.all(
+          ["assignments", "grades", "quizzes", "news", "submissions", "grade-objects", "grade-categories", "grade-setup"].map((n) => course(id, `${n}.json`)),
+        );
+        perCourse[id] = { assignments, grades, quizzes, news, submissions, gradeObjects, gradeCategories, gradeSetup };
+      }),
+    );
+    const [courses, due, overdue, calendar, news, finalGrades] = await Promise.all(
+      ["courses", "due", "overdue", "calendar", "news", "final-grades"].map((n) => readJson(path.join(dir, `${n}.json`))),
+    );
     const raw: D2lRaw = {
       fetchedAt: manifest?.fetchedAt ?? stat.mtime.toISOString(),
       failures: manifest?.failures ?? [],
-      courses: await readJson(path.join(dir, "courses.json")),
-      due: await readJson(path.join(dir, "due.json")),
-      overdue: await readJson(path.join(dir, "overdue.json")),
-      calendar: await readJson(path.join(dir, "calendar.json")),
-      news: await readJson(path.join(dir, "news.json")),
-      finalGrades: await readJson(path.join(dir, "final-grades.json")),
+      courses,
+      due,
+      overdue,
+      calendar,
+      news,
+      finalGrades,
       perCourse,
       quizLogs: logs.text,
     };

@@ -29,8 +29,8 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const courses: NavCourse[] = (await getLibraryCourses().catch(() => [])).map(({ slug, code, hue, icon }) => ({ slug, code, hue, icon }));
-  const s = await getSyncStatus().catch(() => null);
+  const [libCourses, s] = await Promise.all([getLibraryCourses().catch(() => []), getSyncStatus().catch(() => null)]);
+  const courses: NavCourse[] = libCourses.map(({ slug, code, hue, icon }) => ({ slug, code, hue, icon }));
   const sync = s && { fetchedAt: s.fetchedAt, level: s.level, needsLogin: s.session?.state === "needs_login", lastFailed: s.lastFailed };
   const brand = { appName: APP_NAME, schoolName: SCHOOL_NAME, sync };
   return (

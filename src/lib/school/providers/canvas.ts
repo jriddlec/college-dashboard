@@ -52,18 +52,25 @@ export async function loadCanvasSnapshot(dataDir: string, grading: Syllabi = {},
     const manifest = (await readJson(manifestPath)) as { fetchedAt?: string; failures?: string[] } | undefined;
     const perCourse: CanvasRaw["perCourse"] = {};
     const coursesDir = path.join(dir, "courses");
-    for (const id of await fs.readdir(coursesDir).catch(() => [] as string[])) {
-      perCourse[id] = {
-        assignments: await readJson(path.join(coursesDir, id, "assignments.json")),
-        assignmentGroups: await readJson(path.join(coursesDir, id, "assignment-groups.json")),
-      };
-    }
+    const ids = await fs.readdir(coursesDir).catch(() => [] as string[]);
+    await Promise.all(
+      ids.map(async (id) => {
+        const [assignments, assignmentGroups] = await Promise.all([
+          readJson(path.join(coursesDir, id, "assignments.json")),
+          readJson(path.join(coursesDir, id, "assignment-groups.json")),
+        ]);
+        perCourse[id] = { assignments, assignmentGroups };
+      }),
+    );
+    const [courses, announcements, calendar] = await Promise.all(
+      ["courses", "announcements", "calendar"].map((n) => readJson(path.join(dir, `${n}.json`))),
+    );
     const raw: CanvasRaw = {
       fetchedAt: manifest?.fetchedAt ?? stat.mtime.toISOString(),
       failures: manifest?.failures ?? [],
-      courses: await readJson(path.join(dir, "courses.json")),
-      announcements: await readJson(path.join(dir, "announcements.json")),
-      calendar: await readJson(path.join(dir, "calendar.json")),
+      courses,
+      announcements,
+      calendar,
       perCourse,
       quizLogs: logs.text,
     };
