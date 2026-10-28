@@ -1,25 +1,9 @@
-# Running it on a home server
+# Home server extras
 
-Use the same `compose.yml` as on a laptop. Everything specific to your server
-goes in `.env` and an optional `compose.override.yml` next to `compose.yml`
-(Docker Compose reads it automatically; it's ignored by git).
-
-## Paths and ports
-
-```env
-LIBRARY_DIR=/srv/data/school          # your class folders
-DATA_DIR=/srv/appdata/college-dashboard/data
-CONFIG_DIR=/srv/appdata/college-dashboard/config
-PREVIEWS_DIR=/srv/appdata/college-dashboard/previews
-D2L_AUTH_DIR=/srv/appdata/college-dashboard/d2l-auth
-STATE_DIR=/srv/appdata/college-dashboard/state   # shared marks, sent reminders
-PUID=1000                             # the owner of those folders (`id`)
-PGID=1000
-WEB_PORT=127.0.0.1:3000               # loopback; a proxy or VPN serves it
-```
-
-Create the folders as that user before the first start. Docker creates
-missing ones as root, and the containers can't write to them.
+Start with [install.md](install.md#on-a-home-server). This page covers ways to
+reach the dashboard from other devices. Anything specific to your server goes
+in a `compose.override.yml` next to `compose.yml` (Docker Compose reads it
+automatically; it's ignored by git).
 
 ## Access
 
@@ -92,18 +76,4 @@ ssh -N -L 6080:127.0.0.1:6080 yourserver
 
 Then open http://localhost:6080/vnc.html. See [d2l.md](d2l.md).
 
-## Updating
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Rebuilding the `d2l` image recreates the session container, which may need a
-new sign-in.
-
-## Backups
-
-Back up `CONFIG_DIR` (your settings), `STATE_DIR` (your marks) and your library. `DATA_DIR` is
-re-synced from the LMS, and `PREVIEWS_DIR` is rebuilt by `convert`. Don't
-back up `D2L_AUTH_DIR` to shared or cloud storage: it holds a live session.
+Updating and backups: see [install.md](install.md#updating).

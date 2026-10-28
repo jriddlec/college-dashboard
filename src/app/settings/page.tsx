@@ -58,7 +58,15 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Settings" subtitle="Alerts, the LMS sync, and how the app looks" />
+      <PageHeader
+        title="Settings"
+        subtitle="Alerts, the LMS sync, and how the app looks"
+        actions={
+          <Link href="/setup" className="text-[13px] text-muted hover:text-fg underline underline-offset-2">
+            Run the setup guide again
+          </Link>
+        }
+      />
 
       {!canSave && (
         <p className="card px-4 py-3 mb-6 text-[13px] text-warn">

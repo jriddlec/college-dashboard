@@ -45,6 +45,8 @@ export const SettingsSchema = z.object({
   alertsOff: z.array(z.enum(ALERT_KINDS)).optional(),
   /** Seconds between syncs (5 min to 1 day). */
   syncInterval: z.number().int().min(300).max(86400).optional(),
+  /** The first-run guide at /setup was finished or skipped. */
+  setupDone: z.boolean().optional(),
 });
 export type UserSettings = z.infer<typeof SettingsSchema>;
 

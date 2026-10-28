@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { CalendarCheck, CalendarDays, CircleAlert, Clock, Coffee, GraduationCap, MapPin, PenLine } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
@@ -18,6 +19,8 @@ import { HideOverdueButton, ShowHiddenOverdue } from "@/components/hide-overdue"
 import { HIDDEN_OVERDUE_COOKIE, parseIdCookie } from "@/lib/hidden-overdue";
 import { LMS_LABEL } from "@/lib/settings";
 import { readState } from "@/lib/state";
+import { readSettings } from "@/lib/user-settings";
+import { SETUP_COOKIE } from "@/lib/setup";
 import type { EventKind } from "@/lib/school/types";
 
 const UPCOMING_LIMIT = 8;
@@ -25,6 +28,8 @@ const UPCOMING_LIMIT = 8;
 const RECENT_OVERDUE_DAYS = 14;
 
 export default async function Home() {
+  // First visit: walk through /setup (finishing or skipping it sets the flag and the cookie).
+  if (!(await readSettings()).setupDone && !(await cookies()).has(SETUP_COOKIE)) redirect("/setup");
   const result = await getSchoolData();
   if (result.status !== "ok") return <DataUnavailable result={result} title="Today" />;
   const { snapshot } = result;
