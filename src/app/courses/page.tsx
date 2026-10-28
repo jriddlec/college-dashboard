@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BookOpen } from "lucide-react";
 import { getSchoolData } from "@/lib/school";
-import { CourseCard } from "@/components/course-card";
+import { CourseCard, classGridClass } from "@/components/course-card";
 import { DataUnavailable } from "@/components/data-state";
 import { EmptyState, PageHeader, Section } from "@/components/ui";
 import { LMS_LABEL } from "@/lib/settings";
@@ -19,7 +19,7 @@ export default async function CoursesPage() {
   const terms = [...new Set(active.map((c) => c.term).filter(Boolean))];
 
   const grid = (list: typeof active) => (
-    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div className={classGridClass}>
       {list.map((c) => (
         <CourseCard
           key={c.id}

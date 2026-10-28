@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { getLibrary } from "@/lib/library";
 import { KIND_FILTER, flatten, itemContexts, type Material } from "@/lib/library/catalog";
 import { LibraryError } from "@/components/library/library-error";
 import { HomeSearch, type SearchEntry } from "@/components/library/home-search";
 import { MaterialRow, shortDate } from "@/components/library/material";
 import { PageHeader, Section, hueVars } from "@/components/ui";
+import { ClassCard, classGridClass } from "@/components/course-card";
+import { courseTabHref } from "@/components/course-tabs";
 
 const STUDY_FIRST = (m: Material) => (KIND_FILTER[m.kind] === "study" ? 0 : KIND_FILTER[m.kind] === "practice" ? 1 : 2);
 
@@ -36,25 +37,18 @@ export default async function LibraryPage() {
       <HomeSearch entries={entries}>
         <div className="space-y-10">
           <Section title="Classes">
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className={classGridClass}>
               {lib.courses.map((c) => (
-                <Link
+                <ClassCard
                   key={c.course.slug}
-                  href={`/library/${c.course.slug}`}
+                  href={c.course.id ? courseTabHref(c.course.id, "material") : `/library/${c.course.slug}`}
                   style={hueVars(c.course.hue)}
-                  className="card course-bar group px-4 py-3.5 hover:border-border-strong transition-colors"
+                  code={c.course.code}
+                  corner={c.course.term}
+                  name={c.course.name ?? c.course.code}
+                  instructor={c.course.instructor}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2">
-                      <span className="size-2 rounded-full course-dot" />
-                      <span className="text-[15px] font-semibold">{c.course.code}</span>
-                    </span>
-                    <ChevronRight className="size-4 text-subtle group-hover:text-fg transition-colors" />
-                  </div>
-                  <div className="text-[13px] text-muted mt-0.5 truncate">
-                    {[c.course.name, c.course.instructor].filter(Boolean).join(" · ")}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[12px] text-muted tabular-nums">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 tabular-nums">
                     <span>
                       <b className="font-semibold text-fg">{c.stats.units}</b> units
                     </span>
@@ -64,9 +58,9 @@ export default async function LibraryPage() {
                     <span>
                       <b className="font-semibold text-fg">{c.stats.items}</b> items
                     </span>
-                    {c.latest && <span className="text-subtle">latest {shortDate(c.latest)}</span>}
                   </div>
-                </Link>
+                  <div className="mt-1 text-subtle">{c.latest ? `Latest ${shortDate(c.latest)}` : "No dated material"}</div>
+                </ClassCard>
               ))}
             </div>
           </Section>
