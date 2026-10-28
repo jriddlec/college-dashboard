@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { courseTabHref } from "@/components/course-tabs";
 import { getCourseLibrary, getLibraryCourses } from "@/lib/library";
-import { LMS_LABEL, lmsCourseUrl } from "@/lib/settings";
 import { LibraryView, NoMaterial } from "@/components/library/library-view";
 import { LibraryError } from "@/components/library/library-error";
-import { PageHeader, Stat, buttonClass, hueVars } from "@/components/ui";
+import { PageHeader, Stat, hueVars } from "@/components/ui";
 import { shortDate } from "@/components/library/material";
 
 export async function generateMetadata({ params }: PageProps<"/library/[course]">): Promise<Metadata> {
@@ -21,6 +19,8 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/l
   if (lib && "error" in lib) return <LibraryError error={lib.error} />;
   if (!lib) notFound();
   const { course, stats } = lib;
+  // Classes with an LMS course live under the class page's Material tab.
+  if (course.id) redirect(courseTabHref(course.id, "material", typeof open === "string" ? open : undefined));
 
   return (
     <div style={hueVars(course.hue)}>
@@ -28,18 +28,6 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/l
         leading={<span className="size-2.5 rounded-full course-dot" />}
         title={course.code}
         subtitle={[course.name, course.instructor, course.term].filter(Boolean).join(" · ")}
-        actions={
-          course.id && (
-            <div className="flex gap-2">
-              <Link href={`/courses/${encodeURIComponent(course.id)}`} className={buttonClass}>
-                Class overview
-              </Link>
-              <a href={lmsCourseUrl(course.id, "content")} target="_blank" rel="noreferrer" className={buttonClass}>
-                {LMS_LABEL} content <ArrowUpRight className="size-3.5" />
-              </a>
-            </div>
-          )
-        }
       />
 
       {stats.items === 0 ? (

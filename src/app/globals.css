@@ -110,6 +110,15 @@ body {
 [data-theme="dark"] .course-text {
   color: hsl(var(--hue) var(--course-s) var(--course-l));
 }
+.course-border {
+  border-color: hsl(var(--hue) var(--course-s) var(--course-l));
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 .course-bar {
   box-shadow: inset 3px 0 0 hsl(var(--hue) var(--course-s) var(--course-l));
 }
