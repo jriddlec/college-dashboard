@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Atom,
@@ -74,6 +74,12 @@ function Logo({ appName }: { appName: string }) {
   return <div className="size-6 rounded-md bg-accent text-white grid place-items-center text-[11px] font-bold tracking-tight">{appName.slice(0, 1).toUpperCase()}</div>;
 }
 
+/** Inside a Link: a thin bar at the top of the window while that link's page loads. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span className="nav-pending" aria-hidden /> : null;
+}
+
 const itemClass = (active: boolean) =>
   clsx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors", active ? "bg-surface-2 text-fg font-medium" : "text-muted hover:bg-surface-2/70 hover:text-fg");
 
@@ -97,6 +103,7 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
             <Link key={href} href={href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
               <Icon className="size-4" strokeWidth={active ? 2.2 : 1.8} />
               {label}
+              <Pending />
             </Link>
           );
         })}
@@ -110,6 +117,7 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
               <Icon className={clsx("size-4", active && "course-text")} strokeWidth={active ? 2.2 : 1.8} />
               <span className="flex-1">{code}</span>
               <span className="size-1.5 rounded-full course-dot" />
+              <Pending />
             </Link>
           );
         })}
@@ -128,10 +136,12 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
               </span>
             )}
           </span>
+          <Pending />
         </Link>
         <Link href="/settings" aria-current={isActive(pathname, "/settings") ? "page" : undefined} className={clsx(itemClass(isActive(pathname, "/settings")), "text-[13px] font-normal")}>
           <Settings className="size-4" strokeWidth={1.8} />
           Settings
+          <Pending />
         </Link>
       </div>
     </aside>
@@ -154,6 +164,7 @@ export function MobileNav() {
             >
               <Icon className="size-5" strokeWidth={active ? 2.2 : 1.8} />
               {label}
+              <Pending />
             </Link>
           );
         })}
