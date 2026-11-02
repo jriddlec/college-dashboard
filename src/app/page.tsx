@@ -211,7 +211,7 @@ export default async function Home() {
                     <div className="text-[12.5px] font-medium text-muted mb-1.5 px-0.5">{g.label}</div>
                     <AssignmentList>
                       {g.items.map((a) => (
-                        <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} dateStyle={g.key === "tomorrow" ? "time" : "full"} folder={folders.get(a.id)} />
+                        <AssignmentRow key={a.id} a={a} course={courses.get(a.courseId)} now={now} dateStyle={g.key === "tomorrow" || g.key.startsWith("day:") ? "time" : "full"} folder={folders.get(a.id)} />
                       ))}
                     </AssignmentList>
                   </div>

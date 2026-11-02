@@ -100,7 +100,7 @@ export default async function AssignmentsPage({ searchParams }: PageProps<"/assi
                     course={courses.get(a.courseId)}
                     now={now}
                     showCourse={!courseId}
-                    dateStyle={g.key === "today" || g.key === "tomorrow" ? "time" : "full"}
+                    dateStyle={g.key === "today" || g.key === "tomorrow" || g.key.startsWith("day:") ? "time" : "full"}
                     folder={folders.get(a.id)}
                   />
                 ))}

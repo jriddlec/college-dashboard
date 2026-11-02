@@ -30,19 +30,19 @@ describe("marked done", () => {
 });
 
 describe("weeklyLoad", () => {
-  it("counts open deadlines per Monday week", () => {
+  it("counts open deadlines per Sunday week", () => {
     const items = [
       { ...base, id: "1", dueAt: "2026-10-21T15:00:00Z", pointsPossible: 10 },
-      { ...base, id: "2", dueAt: "2026-10-25T15:00:00Z" },
+      { ...base, id: "2", dueAt: "2026-10-24T15:00:00Z" },
       { ...base, id: "3", dueAt: "2026-10-27T15:00:00Z", courseId: "d" },
       { ...base, id: "4", dueAt: "2026-10-28T15:00:00Z", status: "submitted" as const },
       { ...base, id: "5", dueAt: "2026-10-19T15:00:00Z" },
     ];
     const w = weeklyLoad(items, now, 3);
     expect(w.map((x) => [x.week, x.total])).toEqual([
-      ["2026-10-19", 2],
-      ["2026-10-26", 1],
-      ["2026-11-02", 0],
+      ["2026-10-18", 2],
+      ["2026-10-25", 1],
+      ["2026-11-01", 0],
     ]);
     expect(w[0].points).toBe(10);
     expect(w[1].byCourse).toEqual([{ courseId: "d", count: 1 }]);

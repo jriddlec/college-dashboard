@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeD2l, prettyCode, list, date } from "./d2l/normalize";
-import { filterAssignments, groupForDate, urgencyOf, agenda } from "./derive";
+import { filterAssignments, groupForDate, groupLabel, urgencyOf, agenda } from "./derive";
 import { SnapshotSchema, type Assignment } from "./types";
 import { buildFixtureSnapshot } from "./providers/fixture";
 import { gpaSummary, letterFor } from "./gpa";
@@ -25,11 +25,20 @@ describe("derive", () => {
     // 11:30 PM Eastern on Oct 5 is already Oct 6 in UTC.
     expect(groupForDate("2026-10-06T03:30:00Z", now)).toBe("today");
     expect(groupForDate("2026-10-06T15:00:00Z", now)).toBe("tomorrow");
-    expect(groupForDate("2026-10-11T15:00:00Z", now)).toBe("week");
-    expect(groupForDate("2026-10-12T15:00:00Z", now)).toBe("next");
-    expect(groupForDate("2026-10-20T15:00:00Z", now)).toBe("week:2026-10-19");
+    expect(groupForDate("2026-10-10T15:00:00Z", now)).toBe("day:2026-10-10");
+    expect(groupForDate("2026-10-11T15:00:00Z", now)).toBe("next");
+    expect(groupForDate("2026-10-20T15:00:00Z", now)).toBe("week:2026-10-18");
     expect(groupForDate("2026-10-04T15:00:00Z", now)).toBe("overdue");
     expect(groupForDate(null, now)).toBe("undated");
+  });
+
+  it("treats Sunday as the start of the current week", () => {
+    const sunday = new Date("2026-10-11T16:00:00Z");
+    expect(groupForDate("2026-10-11T20:00:00Z", sunday)).toBe("today");
+    expect(groupForDate("2026-10-13T15:00:00Z", sunday)).toBe("day:2026-10-13");
+    expect(groupLabel("day:2026-10-13")).toBe("Tuesday");
+    expect(groupForDate("2026-10-17T15:00:00Z", sunday)).toBe("day:2026-10-17");
+    expect(groupForDate("2026-10-18T15:00:00Z", sunday)).toBe("next");
   });
 
   it("computes urgency with completion taking priority", () => {

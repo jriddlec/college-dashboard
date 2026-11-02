@@ -24,28 +24,28 @@ export function urgencyOf(a: Assignment, now: Date): Urgency {
   return "later";
 }
 
-/** Fixed buckets; dated weeks beyond next week use `week:YYYY-MM-DD` (that week's Monday). */
-export type GroupKey = "overdue" | "past" | "today" | "tomorrow" | "week" | "next" | `week:${string}` | "undated";
-export const GROUP_LABELS: Record<Exclude<GroupKey, `week:${string}`>, string> = {
+/** Fixed buckets; the rest of this week uses `day:YYYY-MM-DD`, later weeks `week:YYYY-MM-DD` (that week's Sunday). */
+export type GroupKey = "overdue" | "past" | "today" | "tomorrow" | `day:${string}` | "next" | `week:${string}` | "undated";
+export const GROUP_LABELS: Record<Exclude<GroupKey, `day:${string}` | `week:${string}`>, string> = {
   overdue: "Overdue",
   past: "Past due · status unknown",
   today: "Today",
   tomorrow: "Tomorrow",
-  week: "This week",
   next: "Next week",
   undated: "No due date",
 };
 
 export function groupLabel(key: GroupKey): string {
+  if (key.startsWith("day:")) return formatKey(key.slice(4), { weekday: "long" });
   return key.startsWith("week:") ? `Week of ${formatKey(key.slice(5), { month: "short", day: "numeric" })}` : GROUP_LABELS[key as keyof typeof GROUP_LABELS];
 }
 
-/** Monday of the calendar week containing `key` (YYYY-MM-DD). */
-export function mondayOf(key: string): string {
-  return addDays(key, -((weekday(key) + 6) % 7));
+/** Sunday of the calendar week containing `key` (YYYY-MM-DD). */
+export function weekStart(key: string): string {
+  return addDays(key, -weekday(key));
 }
 
-/** Buckets a date relative to now. Weeks run Monday through Sunday. */
+/** Buckets a date relative to now. Weeks run Sunday through Saturday. */
 export function groupForDate(iso: string | null, now: Date): GroupKey {
   if (!iso) return "undated";
   const today = dayKey(now);
@@ -54,10 +54,10 @@ export function groupForDate(iso: string | null, now: Date): GroupKey {
   if (diff < 0) return "overdue";
   if (diff === 0) return "today";
   if (diff === 1) return "tomorrow";
-  const weeks = daysBetween(mondayOf(today), mondayOf(day)) / 7;
-  if (weeks === 0) return "week";
+  const weeks = daysBetween(weekStart(today), weekStart(day)) / 7;
+  if (weeks === 0) return `day:${day}`;
   if (weeks === 1) return "next";
-  return `week:${mondayOf(day)}`;
+  return `week:${weekStart(day)}`;
 }
 
 export function byDue(a: Assignment, b: Assignment): number {
@@ -67,7 +67,7 @@ export function byDue(a: Assignment, b: Assignment): number {
 }
 
 export function groupAssignments(items: Assignment[], now: Date) {
-  const head: GroupKey[] = ["overdue", "past", "today", "tomorrow", "week", "next"];
+  const head: GroupKey[] = ["overdue", "past", "today", "tomorrow"];
   const map = new Map<GroupKey, Assignment[]>();
   for (const a of [...items].sort(byDue)) {
     const g = a.dueAt && new Date(a.dueAt) < now ? (urgencyOf(a, now) === "overdue" ? "overdue" : "past") : groupForDate(a.dueAt, now);
@@ -75,7 +75,8 @@ export function groupAssignments(items: Assignment[], now: Date) {
     map.get(g)!.push(a);
   }
   const weeks = [...map.keys()].filter((k) => k.startsWith("week:")).sort();
-  const order = [...head, ...weeks, "undated" as const];
+  const days = [...map.keys()].filter((k) => k.startsWith("day:")).sort();
+  const order = [...head, ...days, "next" as const, ...weeks, "undated" as const];
   return order.filter((k) => map.has(k)).map((k) => ({ key: k, label: groupLabel(k), items: map.get(k)! }));
 }
 
@@ -173,7 +174,7 @@ export function courseLabel(c: Course | undefined): string {
 }
 
 export interface WeekLoad {
-  /** Monday, YYYY-MM-DD. */
+  /** Sunday, YYYY-MM-DD. */
   week: string;
   label: string;
   total: number;
@@ -182,9 +183,9 @@ export interface WeekLoad {
   byCourse: { courseId: string; count: number }[];
 }
 
-/** Open (not done) deadlines per Monday–Sunday week, starting with this week. */
+/** Open (not done) deadlines per Sunday–Saturday week, starting with this week. */
 export function weeklyLoad(items: Assignment[], now: Date, weeks = 6): WeekLoad[] {
-  const first = mondayOf(dayKey(now));
+  const first = weekStart(dayKey(now));
   const out: WeekLoad[] = Array.from({ length: weeks }, (_, i) => {
     const week = addDays(first, i * 7);
     return { week, label: i === 0 ? "This week" : i === 1 ? "Next week" : formatKey(week, { month: "short", day: "numeric" }), total: 0, points: 0, byCourse: [] };
@@ -192,7 +193,7 @@ export function weeklyLoad(items: Assignment[], now: Date, weeks = 6): WeekLoad[
   const counts = out.map(() => new Map<string, number>());
   for (const a of items) {
     if (!a.dueAt || isDone(a) || Date.parse(a.dueAt) < now.getTime()) continue;
-    const i = daysBetween(first, mondayOf(dayKey(a.dueAt))) / 7;
+    const i = daysBetween(first, weekStart(dayKey(a.dueAt))) / 7;
     if (i < 0 || i >= weeks) continue;
     out[i].total++;
     out[i].points += a.pointsPossible ?? 0;
