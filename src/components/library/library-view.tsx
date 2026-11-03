@@ -37,8 +37,7 @@ export function LibraryView({ lib, focus }: { lib: CourseLibrary; focus?: string
   const storageKey = `study:open:${lib.course.slug}`;
   const sections = useMemo(
     () => [
-      // Exams already taken drop out of prep; undated folders stay.
-      { key: "exams", title: "Exam prep", groups: lib.exams.filter((g) => !(g.examDays != null && g.examDays < 0)) },
+      { key: "exams", title: "Exam prep", groups: lib.exams },
       { key: "units", title: "Units", groups: lib.units },
       { key: "classwork", title: "Classwork", groups: lib.classwork },
       { key: "documents", title: "Course documents", groups: lib.documents },
