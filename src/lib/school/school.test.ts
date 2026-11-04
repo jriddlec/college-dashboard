@@ -1,3 +1,4 @@
+import { courseStanding } from "./standing";
 import { describe, expect, it } from "vitest";
 import { normalizeD2l, prettyCode, list, date } from "./d2l/normalize";
 import { filterAssignments, groupForDate, groupLabel, urgencyOf, agenda } from "./derive";
@@ -369,5 +370,15 @@ describe("syllabus items", () => {
     const after = withAttendance({ ...base, assignments: [item] }, new Date("2026-11-11T15:00:00Z"));
     expect(before.assignments[0].attended).toBeUndefined();
     expect(after.assignments[0].attended).toBe(true);
+  });
+});
+
+describe("exempt items", () => {
+  const item = (name: string, earned: number) => ({ id: name, name, categoryId: "q", categoryName: "Quizzes", weight: 25, excluded: false, earned, possible: 10, at: "2026-01-01T12:00:00Z" });
+  const book = { system: "weighted" as const, items: [item("Quiz 1", 8), item("Quiz 2", 0)], categories: [{ id: "q", weight: 100, dropLowest: 0 }] };
+
+  it("leaves them out of the estimate", () => {
+    expect(courseStanding("c", book, { source: "s" })?.percent).toBe(40);
+    expect(courseStanding("c", book, { source: "s", exempt: ["Quiz 2"] })?.percent).toBe(80);
   });
 });

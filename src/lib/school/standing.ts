@@ -68,6 +68,8 @@ export interface Syllabus {
   bonus?: { match: string; perItem: number; max: number };
   /** Hand-kept quiz log in the library, relative to LIBRARY_DIR (see quizlog.ts); `category` is its Brightspace category. */
   quizLog?: { file: string; category: string };
+  /** Exact names of items the instructor exempted: left out of the estimate, even if the gradebook shows a score. */
+  exempt?: string[];
 }
 
 const isGraded = (i: GradebookItem) => i.earned != null && i.possible != null && i.possible > 0;
@@ -150,7 +152,8 @@ function bonusPoints(book: Gradebook, syl: Syllabus | undefined, graded: (i: Gra
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Current estimate plus a per-day history replayed from score timestamps. */
-export function courseStanding(courseId: string, raw: Gradebook, syllabus?: Syllabus): CourseStanding | null {
+export function courseStanding(courseId: string, gradebook: Gradebook, syllabus?: Syllabus): CourseStanding | null {
+  const raw = syllabus?.exempt?.length ? { ...gradebook, items: gradebook.items.filter((i) => !syllabus.exempt!.includes(i.name)) } : gradebook;
   const book = syllabus ? applySyllabus(raw, syllabus) : raw;
   const score = (graded: (i: GradebookItem) => boolean) => {
     const e = estimate(book, graded);
