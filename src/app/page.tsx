@@ -126,8 +126,8 @@ export default async function Home() {
       )}
 
       <div className="grid grid-cols-4 gap-2 md:gap-3 mb-8">
-        <Stat compact label="Due today" value={dueToday.filter((a) => !isDone(a)).length} href="/assignments" />
-        <Stat compact label="Next 7 days" shortLabel="7 days" value={next7.length} href="/assignments" />
+        <Stat compact label="Due today" value={dueToday.filter((a) => !isDone(a)).length} tone="warn" href="/assignments" />
+        <Stat compact label="Next 7 days" shortLabel="7 days" value={next7.length} tone="info" href="/assignments" />
         <Stat compact label="Overdue" value={visibleOverdue.length} tone="danger" href="/assignments?filter=overdue" hint={olderOverdue > 0 ? `+${olderOverdue} older` : undefined} />
         <Stat compact label="Classes" value={activeCourses.length} href="/courses" />
       </div>

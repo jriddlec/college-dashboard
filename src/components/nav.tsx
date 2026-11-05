@@ -22,6 +22,8 @@ import {
   ListTodo,
   Music,
   Palette,
+  PanelLeftClose,
+  PanelLeftOpen,
   PenLine,
   Scale,
   Settings,
@@ -80,16 +82,28 @@ function Pending() {
   return pending ? <span className="nav-pending" aria-hidden /> : null;
 }
 
-const itemClass = (active: boolean) =>
-  clsx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors", active ? "bg-surface-2 text-fg font-medium" : "text-muted hover:bg-surface-2/70 hover:text-fg");
+const ITEM_BASE = "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors collapsed:justify-center collapsed:px-0";
+const ITEM_IDLE = "text-muted hover:bg-surface-2/70 hover:text-fg";
+const itemClass = (active: boolean) => clsx(ITEM_BASE, active ? "bg-accent-soft text-fg font-medium [&>svg]:text-accent" : ITEM_IDLE);
+
+/** State lives on <html> so the first paint and the server render agree. */
+function toggleSidebar() {
+  const root = document.documentElement;
+  const collapse = root.dataset.sidebar !== "collapsed";
+  if (collapse) root.dataset.sidebar = "collapsed";
+  else delete root.dataset.sidebar;
+  try {
+    localStorage.setItem("sidebar", collapse ? "collapsed" : "expanded");
+  } catch {}
+}
 
 export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCourse[] } & Brand) {
   const pathname = usePathname();
   return (
-    <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-sidebar h-dvh sticky top-0">
-      <Link href="/" className="flex items-center gap-2.5 px-4 h-14">
+    <aside className="hidden md:flex w-(--sidebar-w) shrink-0 flex-col border-r border-border bg-sidebar h-dvh sticky top-0">
+      <Link href="/" aria-label={appName} title={appName} className="flex items-center gap-2.5 px-4 h-14 collapsed:justify-center collapsed:px-0">
         <Logo appName={appName} />
-        <div className="leading-tight min-w-0">
+        <div className="leading-tight min-w-0 collapsed:hidden">
           <div className="text-[13px] font-semibold truncate">{appName}</div>
           {schoolName && <div className="text-[11px] text-muted truncate">{schoolName}</div>}
         </div>
@@ -100,35 +114,47 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
           // Library is exact here: its class pages are highlighted below.
           const active = isActive(pathname, href, href === "/library", also);
           return (
-            <Link key={href} href={href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
-              <Icon className="size-4" strokeWidth={active ? 2.2 : 1.8} />
-              {label}
+            <Link key={href} href={href} aria-label={label} title={label} aria-current={active ? "page" : undefined} className={itemClass(active)}>
+              <Icon className="size-4 shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+              <span className="collapsed:hidden">{label}</span>
               <Pending />
             </Link>
           );
         })}
-        {courses.length > 0 && <div className="px-2.5 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-subtle">Library</div>}
+        {courses.length > 0 && (
+          <>
+            <div className="px-2.5 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-subtle collapsed:hidden">Library</div>
+            <div className="hidden collapsed:block mx-2 my-2 border-t border-border" />
+          </>
+        )}
         {courses.map(({ slug, code, hue, icon }) => {
           const href = `/library/${slug}`;
           const active = isActive(pathname, href);
           const Icon = (icon && COURSE_ICONS[icon]) || BookMarked;
           return (
-            <Link key={slug} href={href} aria-current={active ? "page" : undefined} style={{ "--hue": hue } as CSSProperties} className={itemClass(active)}>
-              <Icon className={clsx("size-4", active && "course-text")} strokeWidth={active ? 2.2 : 1.8} />
-              <span className="flex-1">{code}</span>
-              <span className="size-1.5 rounded-full course-dot" />
+            <Link
+              key={slug}
+              href={href}
+              aria-label={code}
+              title={code}
+              aria-current={active ? "page" : undefined}
+              style={{ "--hue": hue } as CSSProperties}
+              className={clsx(ITEM_BASE, active ? "course-soft font-medium" : ITEM_IDLE)}
+            >
+              <Icon className="size-4 shrink-0 course-text" strokeWidth={active ? 2.2 : 1.8} />
+              <span className="flex-1 collapsed:hidden">{code}</span>
               <Pending />
             </Link>
           );
         })}
       </nav>
       <div className="px-2 py-3 border-t border-border space-y-1">
-        <Link href="/status" className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal", sync?.level === "bad" && "text-danger", sync?.level === "warn" && "text-warn")}>
+        <Link href="/status" aria-label="Data status" title="Data status" className={clsx(itemClass(isActive(pathname, "/status")), "text-[13px] font-normal", sync?.level === "bad" && "text-danger", sync?.level === "warn" && "text-warn")}>
           <span className="relative">
-            <Database className="size-4" strokeWidth={1.8} />
+            <Database className="size-4 shrink-0" strokeWidth={1.8} />
             {sync && <SyncDot sync={sync} className="absolute -right-0.5 -bottom-0.5 ring-2 ring-sidebar" />}
           </span>
-          <span className="min-w-0 leading-tight">
+          <span className="min-w-0 leading-tight collapsed:hidden">
             Data status
             {sync && (
               <span className="block text-[11px] text-subtle truncate">
@@ -138,11 +164,16 @@ export function Sidebar({ courses, appName, schoolName, sync }: { courses: NavCo
           </span>
           <Pending />
         </Link>
-        <Link href="/settings" aria-current={isActive(pathname, "/settings") ? "page" : undefined} className={clsx(itemClass(isActive(pathname, "/settings")), "text-[13px] font-normal")}>
-          <Settings className="size-4" strokeWidth={1.8} />
-          Settings
+        <Link href="/settings" aria-label="Settings" title="Settings" aria-current={isActive(pathname, "/settings") ? "page" : undefined} className={clsx(itemClass(isActive(pathname, "/settings")), "text-[13px] font-normal")}>
+          <Settings className="size-4 shrink-0" strokeWidth={1.8} />
+          <span className="collapsed:hidden">Settings</span>
           <Pending />
         </Link>
+        <button type="button" onClick={toggleSidebar} aria-label="Toggle sidebar" title="Toggle sidebar" className={clsx(itemClass(false), "w-full text-[13px]")}>
+          <PanelLeftClose className="size-4 shrink-0 collapsed:hidden" strokeWidth={1.8} />
+          <PanelLeftOpen className="size-4 shrink-0 hidden collapsed:block" strokeWidth={1.8} />
+          <span className="collapsed:hidden">Collapse</span>
+        </button>
       </div>
     </aside>
   );

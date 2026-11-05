@@ -4,7 +4,16 @@
    by the inline script in layout.tsx from localStorage or the OS preference. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Sidebar shrunk to icons: data-sidebar="collapsed" on <html>, set before paint
+   by the inline script in layout.tsx from localStorage. */
+@custom-variant collapsed (&:where([data-sidebar="collapsed"] *));
+
+html[data-sidebar="collapsed"] {
+  --sidebar-w: 3.5rem;
+}
+
 :root {
+  --sidebar-w: 14rem;
   --bg: #fbfbfa;
   --surface: #ffffff;
   --surface-2: #f4f4f2;

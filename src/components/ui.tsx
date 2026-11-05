@@ -154,7 +154,9 @@ export function Stat({
         className={clsx(
           "font-semibold tracking-tight mt-0.5 tabular-nums",
           compact ? "text-[18px] md:text-[22px]" : "text-[22px]",
-          tone === "danger" && Number(value) > 0 && "text-danger",
+          Number(value) > 0 && tone === "danger" && "text-danger",
+          Number(value) > 0 && tone === "warn" && "text-warn",
+          Number(value) > 0 && tone === "info" && "text-info",
         )}
       >
         {value}

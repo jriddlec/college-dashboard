@@ -176,7 +176,7 @@ export function PdfFrame({ src, title }: { src: string; title: string }) {
     <div
       className={
         full
-          ? "fixed inset-0 md:left-56 z-40 flex flex-col bg-surface"
+          ? "fixed inset-0 md:left-(--sidebar-w) z-40 flex flex-col bg-surface"
           : "card overflow-hidden flex flex-col h-[calc(100dvh-10rem)] min-h-[480px]"
       }
     >

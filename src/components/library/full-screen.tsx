@@ -53,7 +53,7 @@ export function HtmlFrame({ src, title }: { src: string; title: string }) {
   const [full, setFull] = useFullScreen();
   return (
     <div
-      className={full ? "fixed inset-0 md:left-56 z-40 bg-white" : "relative"}
+      className={full ? "fixed inset-0 md:left-(--sidebar-w) z-40 bg-white" : "relative"}
     >
       <FullScreenButton
         full={full}

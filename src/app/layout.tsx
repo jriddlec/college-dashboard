@@ -11,6 +11,9 @@ import { ACCENT_COLOR, APP_NAME, SCHOOL_NAME, accentCss } from "@/lib/settings";
 import { getSyncStatus } from "@/lib/sync-status";
 import "./globals.css";
 
+/** Applies the saved sidebar state before first paint (no flash). */
+const sidebarInitScript = `try{if(localStorage.getItem('sidebar')==='collapsed')document.documentElement.dataset.sidebar='collapsed'}catch(e){}`;
+
 export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
@@ -37,6 +40,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: sidebarInitScript }} />
         {ACCENT_COLOR && <style dangerouslySetInnerHTML={{ __html: accentCss(ACCENT_COLOR) }} />}
       </head>
       <body className="min-h-dvh">

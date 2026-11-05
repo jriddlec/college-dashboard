@@ -162,12 +162,12 @@ export function CommandPalette() {
 /** Search button for the nav. */
 export function SearchButton({ className, compact }: { className?: string; compact?: boolean }) {
   return (
-    <button type="button" onClick={openSearch} aria-label="Search" className={className}>
-      <Search className={compact ? "size-4" : "size-4"} strokeWidth={1.8} />
+    <button type="button" onClick={openSearch} aria-label="Search" title="Search" className={className}>
+      <Search className="size-4 shrink-0" strokeWidth={1.8} />
       {!compact && (
         <>
-          <span className="flex-1 text-left">Search</span>
-          <kbd className="text-[10.5px] text-subtle border border-border rounded px-1 py-px font-sans">Ctrl K</kbd>
+          <span className="flex-1 text-left collapsed:hidden">Search</span>
+          <kbd className="collapsed:hidden text-[10.5px] text-subtle border border-border rounded px-1 py-px font-sans">Ctrl K</kbd>
         </>
       )}
     </button>

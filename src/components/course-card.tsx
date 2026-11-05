@@ -78,7 +78,7 @@ export function ClassCard({
           <span className="text-[15px] font-semibold truncate">{code}</span>
         </span>
         <span className="flex items-center gap-2 shrink-0">
-          {corner && <span className="text-[12px] tabular-nums text-muted">{corner}</span>}
+          {corner && <span className="text-[12px] font-medium tabular-nums course-text">{corner}</span>}
           <ChevronRight className="size-4 text-subtle group-hover:text-fg transition-colors" />
         </span>
       </div>
