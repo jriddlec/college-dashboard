@@ -354,12 +354,12 @@ describe("not counted items", () => {
     });
     const book = {
       system: "weighted" as const,
-      items: [item("1", "T1", 60), item("3", "T3", 82, true), item("4", "T3 Adj", 87), item("5", "Quiz05", 0)],
+      items: [item("1", "T1", 60), item("3", "T3", 82, true), item("4", "T3 Adj", 87), item("5", "Quiz05", 0), item("6", "B1", 100, true)],
       categories: [{ id: "c", weight: 100, dropLowest: 0 }],
     };
-    const s = courseStanding("x", book, { source: "t", exempt: ["Quiz05"], categories: [{ name: "Tests", weight: 100, match: "^T[1-4]( Adj)?$|^Quiz", equal: true }] })!;
+    const s = courseStanding("x", book, { source: "t", exempt: ["Quiz05"], bonus: { match: "^B\\d+$", perItem: 0.1, max: 1 }, categories: [{ name: "Tests", weight: 100, match: "^T[1-4]( Adj)?$|^Quiz", equal: true }] })!;
     expect(s.notCounted).toEqual(["T3", "Quiz05"]);
-    expect(s.percent).toBe(73.5);
+    expect(s.percent).toBe(73.6);
   });
 });
 

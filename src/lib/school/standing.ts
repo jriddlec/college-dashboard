@@ -206,7 +206,10 @@ export function courseStanding(courseId: string, gradebook: Gradebook, syllabus?
     history: [...byDay.values()],
     sectionWeights,
     itemSections,
-    notCounted: gradebook.items.filter((i) => isGraded(i) && (i.excluded || syllabus?.exempt?.includes(i.name))).map((i) => i.name),
+    // Bonus items are excluded from the gradebook total but still count (as bonus), so they aren't listed.
+    notCounted: gradebook.items
+      .filter((i) => isGraded(i) && (i.excluded || syllabus?.exempt?.includes(i.name)) && !(syllabus?.bonus && new RegExp(syllabus.bonus.match, "i").test(i.name)))
+      .map((i) => i.name),
   };
 }
 
