@@ -135,6 +135,8 @@ export const CourseStandingSchema = z.object({
   sectionWeights: z.record(z.string(), z.number()).default({}),
   /** Syllabus category name per item name, for items the gradebook leaves uncategorized. */
   itemSections: z.record(z.string(), z.string()).optional(),
+  /** Names of scored items left out of the final grade (gradebook "exclude" flag, bonus, or `exempt`), shown as "Not counted". */
+  notCounted: z.array(z.string()).optional(),
   /** Per-day estimate, oldest first; `items` are the scores entered that day (the chart's pins). */
   history: z.array(
     z.object({

@@ -33,7 +33,19 @@ function typeRank(t: string): number {
 type SortKey = "type" | "recent" | "score";
 const time = (g: Grade) => Date.parse(g.postedAt ?? "0") || 0;
 
-export function GradeTable({ items, weights, sections }: { items: Grade[]; weights?: Record<string, number>; sections?: Record<string, string> }) {
+export function GradeTable({
+  items,
+  weights,
+  sections,
+  notCounted,
+}: {
+  items: Grade[];
+  weights?: Record<string, number>;
+  sections?: Record<string, string>;
+  /** Item names left out of the final grade: muted, labelled, and left out of section averages. */
+  notCounted?: string[];
+}) {
+  const skip = useMemo(() => new Set(notCounted ?? []), [notCounted]);
   const [sort, setSort] = useState<SortKey>("type");
   const [filter, setFilter] = useState<string | null>(null);
   const typeOf = useMemo(() => (g: Grade) => typeOfIn(g, sections), [sections]);
@@ -60,7 +72,7 @@ export function GradeTable({ items, weights, sections }: { items: Grade[]; weigh
   const averages = useMemo(() => {
     const out = new Map<string, number>();
     for (const [t] of types) {
-      const graded = items.filter((g) => typeOf(g) === t && g.percent != null);
+      const graded = items.filter((g) => typeOf(g) === t && g.percent != null && !skip.has(g.name));
       if (!graded.length) continue;
       const pts = graded.every((g) => g.pointsEarned != null && g.pointsPossible);
       const avg = pts
@@ -69,7 +81,7 @@ export function GradeTable({ items, weights, sections }: { items: Grade[]; weigh
       out.set(t, Math.round(avg * 10) / 10);
     }
     return out;
-  }, [items, types, typeOf]);
+  }, [items, types, typeOf, skip]);
 
   const chip = (active: boolean) =>
     `rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${active ? "border-border-strong bg-surface-2 text-fg" : "border-border text-muted hover:text-fg"}`;
@@ -124,9 +136,14 @@ export function GradeTable({ items, weights, sections }: { items: Grade[]; weigh
                     <td className="hidden sm:table-cell" />
                   </tr>
                 ),
-                <tr key={g.id}>
+                <tr key={g.id} className={skip.has(g.name) ? "text-muted" : undefined}>
                   <td className="px-4 py-2.5">
                     {g.name}
+                    {skip.has(g.name) && (
+                      <span className="ml-2 align-middle rounded-full border border-border px-1.5 py-px text-[10.5px] text-subtle" title="Left out of the final grade">
+                        Not counted
+                      </span>
+                    )}
                     <NewBadge at={g.postedAt} className="ml-2 align-middle" />
                     {!grouped && !filter && <span className="text-subtle text-[11.5px] ml-2">{t}</span>}
                   </td>

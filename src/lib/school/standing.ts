@@ -206,6 +206,7 @@ export function courseStanding(courseId: string, gradebook: Gradebook, syllabus?
     history: [...byDay.values()],
     sectionWeights,
     itemSections,
+    notCounted: gradebook.items.filter((i) => isGraded(i) && (i.excluded || syllabus?.exempt?.includes(i.name))).map((i) => i.name),
   };
 }
 

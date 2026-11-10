@@ -347,6 +347,22 @@ describe("grade estimates", () => {
   });
 });
 
+describe("not counted items", () => {
+  it("lists excluded and exempt scores, and a replacement score counts in their place", () => {
+    const item = (id: string, name: string, earned: number, excluded = false) => ({
+      id, name, categoryId: "c", categoryName: "Tests", weight: 1, excluded, earned, possible: 100, at: "2026-11-01T00:00:00Z",
+    });
+    const book = {
+      system: "weighted" as const,
+      items: [item("1", "T1", 60), item("3", "T3", 82, true), item("4", "T3 Adj", 87), item("5", "Quiz05", 0)],
+      categories: [{ id: "c", weight: 100, dropLowest: 0 }],
+    };
+    const s = courseStanding("x", book, { source: "t", exempt: ["Quiz05"], categories: [{ name: "Tests", weight: 100, match: "^T[1-4]( Adj)?$|^Quiz", equal: true }] })!;
+    expect(s.notCounted).toEqual(["T3", "Quiz05"]);
+    expect(s.percent).toBe(73.5);
+  });
+});
+
 describe("syllabus items", () => {
   it("adds rows for active courses and hides ones Brightspace already lists", async () => {
     const { withSyllabusItems } = await import("./syllabus");

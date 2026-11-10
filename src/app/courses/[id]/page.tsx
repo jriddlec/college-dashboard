@@ -297,7 +297,7 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
                 </EmptyState>
               </div>
             ) : (
-              <GradeTable items={items} weights={standing?.sectionWeights} sections={standing?.itemSections} />
+              <GradeTable items={items} weights={standing?.sectionWeights} sections={standing?.itemSections} notCounted={standing?.notCounted} />
             )}
           </Section>
           {(standing || total) && (
